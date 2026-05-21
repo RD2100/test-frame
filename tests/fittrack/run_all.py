@@ -158,6 +158,42 @@ def stage3_miniapp():
         print(f"  MiniApp: skipped ({e})")
 
 
+def stage35_android():
+    global passed_total, failed_total
+    print("\n[Stage 3.5] Android Maestro..."); print("-" * 45)
+    # Check if ADB device available
+    import shutil
+    ado = shutil.which("adb") or os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe")
+    mo = shutil.which("maestro") or os.path.expanduser("~/.maestro/bin/maestro")
+    flow = os.path.join(PROJECT_ROOT, "tests", "android", "maestro", "smoke-minimal.yaml")
+    if not os.path.exists(flow):
+        print("  Android: no flow file, skip")
+        return
+    env = {**os.environ, "PATH": os.environ.get("PATH", "")}
+    if ado: env["PATH"] = os.path.dirname(ado) + os.pathsep + env["PATH"]
+    if mo: env["PATH"] = os.path.dirname(mo) + os.pathsep + env["PATH"]
+    try:
+        r = subprocess.run(["maestro", "test", flow], capture_output=True, text=True,
+                           timeout=90, encoding='utf-8', errors='replace', env=env)
+        if r.returncode == 0:
+            passed_total += 1
+            result = {"name": "[Maestro] Android smoke test", "status": "passed",
+                      "stage": "finished", "labels": [{"name": "tool", "value": "maestro"}]}
+            print(f"  Android: 1/1 passed")
+        else:
+            failed_total += 1
+            result = {"name": "[Maestro] Android smoke test", "status": "failed",
+                      "stage": "finished", "labels": [{"name": "tool", "value": "maestro"}],
+                      "statusDetails": {"message": r.stderr[:500] if r.stderr else "flow failed"}}
+            print(f"  Android: 0/1 passed")
+        with open(os.path.join(RESULTS_DIR, str(uuid.uuid4()) + "-result.json"), "w", encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False)
+    except FileNotFoundError:
+        print(f"  Android: Maestro not available, skip")
+    except Exception as e:
+        print(f"  Android: {e}")
+
+
 def stage4_gate():
     print("\n[Stage 4] Attribution + Gate...")
     from aggregator.collector import collect_all_results
@@ -214,6 +250,7 @@ if __name__ == "__main__":
     stage2_pytest()
     stage25_playwright()
     stage3_miniapp()
+    stage35_android()
     gate = stage4_gate()
     stage5_report(open_browser="--open" in sys.argv or "-o" in sys.argv)
 

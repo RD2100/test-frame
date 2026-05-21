@@ -1,50 +1,51 @@
-"""Maestro wrapper — 封装 maestro test 命令"""
+"""Maestro Android wrapper — Run YAML flow on device"""
 
-import subprocess
-import os
+import subprocess, os, json, glob
 from pathlib import Path
 
 
 def run(project_config: dict) -> dict:
-    """执行Maestro冒烟测试，返回 {passed: bool, results: [...]}"""
+    """Execute Maestro flows on Android device/emulator"""
     flow_dir = project_config.get("maestro", {}).get("flow_dir", "tests/android/maestro/")
-    format_type = project_config.get("maestro", {}).get("format", "junit")
-    output_dir = project_config.get("maestro", {}).get("output_dir", "reports/maestro/")
+    device = project_config.get("maestro", {}).get("device", "")
+    results = {"passed": True, "tool": "maestro", "results": [], "failed": [], "flows": 0}
 
-    os.makedirs(output_dir, exist_ok=True)
+    if not os.path.isdir(flow_dir):
+        return {**results, "skipped": True}
 
-    flows = list(Path(flow_dir).glob("*.yaml")) if os.path.isdir(flow_dir) else []
+    flows = sorted(Path(flow_dir).glob("*.yaml"))
     if not flows:
-        print("    [WARN] No Maestro flow files found")
-        return {"passed": True, "tool": "maestro", "results": []}
+        return {**results, "skipped": True}
 
-    results = {"passed": True, "tool": "maestro", "results": [], "failed": []}
     for flow in flows:
-        flow_name = flow.stem
-        print(f"    ▶ {flow_name}")
-        cmd = [
-            "maestro", "test",
-            str(flow),
-            "--format", format_type,
-        ]
+        results["flows"] += 1
+        name = flow.stem
+        cmd = ["maestro", "test", str(flow)]
+        if device:
+            cmd.extend(["--device", device])
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env={**os.environ, "PATH": os.environ.get("PATH", "")})
             if r.returncode == 0:
-                results["results"].append({"name": flow_name, "status": "passed"})
+                results["results"].append({"name": name, "status": "passed"})
             else:
                 results["passed"] = False
-                results["failed"].append(flow_name)
-                results["results"].append({
-                    "name": flow_name, "status": "failed",
-                    "error": r.stderr[:500] if r.stderr else ""
-                })
-                print(f"      [FAIL] {r.stderr[:200]}")
+                results["failed"].append(name)
+                results["results"].append({"name": name, "status": "failed", "error": r.stderr[:300] if r.stderr else "Maestro assertion failed"})
         except FileNotFoundError:
-            print("    [WARN] Maestro CLI not installed, skip")
-            return {"passed": True, "tool": "maestro", "results": [], "skipped": True}
+            return {**results, "skipped": True, "note": "Maestro CLI not in PATH"}
         except subprocess.TimeoutExpired:
             results["passed"] = False
-            results["failed"].append(flow_name)
-            results["results"].append({"name": flow_name, "status": "timeout"})
+            results["failed"].append(name)
+
+    # Collect screenshots from Maestro debug dir
+    maestro_dir = os.path.expanduser("~/.maestro/tests")
+    if os.path.isdir(maestro_dir):
+        latest = sorted(Path(maestro_dir).iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
+        if latest:
+            for png in latest[0].glob("*.png"):
+                dest = os.path.join("reports", "maestro", png.name)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                import shutil
+                shutil.copy(png, dest)
 
     return results
