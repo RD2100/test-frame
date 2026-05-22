@@ -91,17 +91,17 @@ def stage25_playwright():
     time.sleep(2)
 
     try:
+        # 优先使用完整admin测试，回退到基础测试
+        full_spec = os.path.join(PROJECT_ROOT, "tests", "h5", "admin-full.spec.js")
+        pw_cmd = "npx playwright test --config=playwright.config.js"
+        if os.path.exists(full_spec):
+            pw_cmd = f"npx playwright test {full_spec} --config=playwright.config.js"
+
         r = subprocess.run(
-            "npx playwright test --config=playwright.config.js",
-            capture_output=True, text=True, timeout=60, encoding='utf-8', errors='replace', shell=True
+            pw_cmd,
+            capture_output=True, text=True, timeout=120, encoding='utf-8', errors='replace', shell=True
         )
         # Parse human-readable output
-        for line in r.stdout.splitlines():
-            if "passed" in line and ("[" in line or "ok" in line):
-                passed_total += 1
-            elif "failed" in line and "[" in line:
-                failed_total += 1
-        # Also count from summary line
         pw_ok = 0; pw_total = 0
         for line in r.stdout.splitlines():
             if "passed" in line and "failed" in line:
@@ -110,14 +110,22 @@ def stage25_playwright():
                 nums = re.findall(r'(\d+)\s+failed', line)
                 if nums: pw_total = pw_ok + int(nums[0])
         if pw_total == 0:
-            # Try: "18 passed (27.9s)"
             nums = re.findall(r'(\d+)\s+passed', r.stdout)
             if nums: pw_ok = int(nums[0]); pw_total = pw_ok
         print(f"  Playwright: {pw_ok}/{pw_total} passed (3 browsers)")
+        passed_total += pw_ok
+        failed_total += (pw_total - pw_ok)
         # Add to Allure
-        for _ in range(pw_total):
+        for _ in range(pw_ok):
             result = {"name": "[Playwright] H5 cross-browser test",
                       "status": "passed", "stage": "finished",
+                      "labels": [{"name": "tool", "value": "playwright"},
+                                 {"name": "browsers", "value": "chromium,firefox,webkit"}]}
+            with open(os.path.join(RESULTS_DIR, str(uuid.uuid4()) + "-result.json"), "w", encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False)
+        for _ in range(pw_total - pw_ok):
+            result = {"name": "[Playwright] H5 cross-browser test",
+                      "status": "failed", "stage": "finished",
                       "labels": [{"name": "tool", "value": "playwright"},
                                  {"name": "browsers", "value": "chromium,firefox,webkit"}]}
             with open(os.path.join(RESULTS_DIR, str(uuid.uuid4()) + "-result.json"), "w", encoding='utf-8') as f:
@@ -131,20 +139,22 @@ def stage25_playwright():
 def stage3_miniapp():
     global passed_total, failed_total
     print("\n[Stage 3] MiniApp E2E..."); print("-" * 45)
-    sh = os.path.join(PROJECT_ROOT, "scripts", "run_miniapp_e2e.sh")
-    if not os.path.exists(sh):
-        print("  MiniApp: launcher script not found, skip")
-        return
+    # 优先使用完整E2E测试，回退到基础测试
+    full_script = os.path.join(PROJECT_ROOT, "tests", "fittrack", "miniapp", "e2e_full.js")
+    basic_script = os.path.join(PROJECT_ROOT, "scripts", "run_miniapp_e2e.js")
+    node_script = full_script if os.path.exists(full_script) else basic_script
+    if not os.path.exists(node_script):
+        print("  MiniApp: test script not found, skip"); return
     try:
-        r = subprocess.run(["bash", sh], capture_output=True, text=True,
-                           timeout=45, encoding='utf-8', errors='replace')
+        r = subprocess.run(["node", node_script], capture_output=True, text=True,
+                           timeout=90, cwd=PROJECT_ROOT, encoding='utf-8', errors='replace')
         for line in r.stdout.splitlines():
             if line.startswith("MINIAPP_RESULTS:"):
                 mp = json.loads(line.replace("MINIAPP_RESULTS:", ""))
                 for mr in mp:
-                    passed_total += 1
-                    if mr.get("status") != "passed":
-                        failed_total += 1
+                    is_pass = mr.get("status") == "passed"
+                    if is_pass: passed_total += 1
+                    else: failed_total += 1
                     result = {"name": "[MiniApp] " + mr["name"][:80],
                               "status": mr.get("status", "failed"), "stage": "finished",
                               "labels": [{"name": "tool", "value": "miniapp"}]}
@@ -153,7 +163,7 @@ def stage3_miniapp():
                 ok = sum(1 for m in mp if m.get("status") == "passed")
                 print(f"  MiniApp: {ok}/{len(mp)} passed")
                 return
-        print(f"  MiniApp: no results (IDE not ready?)")
+        print(f"  MiniApp: IDE not ready? Output: {r.stdout[:200]}")
     except Exception as e:
         print(f"  MiniApp: skipped ({e})")
 
@@ -161,35 +171,27 @@ def stage3_miniapp():
 def stage35_android():
     global passed_total, failed_total
     print("\n[Stage 3.5] Android Maestro..."); print("-" * 45)
-    # Check if ADB device available
-    import shutil
-    ado = shutil.which("adb") or os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools/adb.exe")
-    mo = shutil.which("maestro") or os.path.expanduser("~/.maestro/bin/maestro")
     flow = os.path.join(PROJECT_ROOT, "tests", "android", "maestro", "smoke-minimal.yaml")
     if not os.path.exists(flow):
-        print("  Android: no flow file, skip")
-        return
-    env = {**os.environ, "PATH": os.environ.get("PATH", "")}
-    if ado: env["PATH"] = os.path.dirname(ado) + os.pathsep + env["PATH"]
-    if mo: env["PATH"] = os.path.dirname(mo) + os.pathsep + env["PATH"]
+        print("  Android: no flow file, skip"); return
+    # Use absolute paths to avoid PATH issues
+    maestro_bin = os.path.expanduser("~/.maestro/bin/maestro.bat")
+    adb_dir = os.path.expanduser("~/AppData/Local/Android/Sdk/platform-tools")
+    env = {**os.environ, "PATH": f"{adb_dir};{os.path.dirname(maestro_bin)};{os.environ.get('PATH','')}"}
     try:
-        r = subprocess.run(["maestro", "test", flow], capture_output=True, text=True,
+        r = subprocess.run([maestro_bin, "test", flow], capture_output=True, text=True,
                            timeout=90, encoding='utf-8', errors='replace', env=env)
-        if r.returncode == 0:
-            passed_total += 1
-            result = {"name": "[Maestro] Android smoke test", "status": "passed",
-                      "stage": "finished", "labels": [{"name": "tool", "value": "maestro"}]}
-            print(f"  Android: 1/1 passed")
-        else:
-            failed_total += 1
-            result = {"name": "[Maestro] Android smoke test", "status": "failed",
-                      "stage": "finished", "labels": [{"name": "tool", "value": "maestro"}],
-                      "statusDetails": {"message": r.stderr[:500] if r.stderr else "flow failed"}}
-            print(f"  Android: 0/1 passed")
+        s = "passed" if r.returncode == 0 else "failed"
+        if s == "passed": passed_total += 1
+        else: failed_total += 1
+        result = {"name": "[Maestro] Android smoke", "status": s, "stage": "finished",
+                  "labels": [{"name": "tool", "value": "maestro"}]}
+        if not r.returncode: result["statusDetails"] = {"message": r.stderr[:300] if r.stderr else ""}
+        print(f"  Android: {s}")
         with open(os.path.join(RESULTS_DIR, str(uuid.uuid4()) + "-result.json"), "w", encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False)
     except FileNotFoundError:
-        print(f"  Android: Maestro not available, skip")
+        print(f"  Android: Maestro not found at {maestro_bin}, skip")
     except Exception as e:
         print(f"  Android: {e}")
 
@@ -224,11 +226,13 @@ def stage5_report(open_browser=False):
             break
     print(f"  Report: reports/fittrack/allure-report/index.html")
     if open_browser:
+        import random
+        port = random.randint(8800, 8900)
         class Q(http.server.SimpleHTTPRequestHandler):
             def log_message(self, *a): pass
-        httpd = socketserver.TCPServer(("127.0.0.1", 8767), Q)
+        httpd = socketserver.TCPServer(("127.0.0.1", port), Q)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
-        url = "http://127.0.0.1:8767/reports/fittrack/allure-report/"
+        url = f"http://127.0.0.1:{port}/reports/fittrack/allure-report/"
         webbrowser.open(url)
         print(f"  Browser: {url}")
         try:

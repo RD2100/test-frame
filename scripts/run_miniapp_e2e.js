@@ -21,11 +21,6 @@ async function main() {
     pass('env:sdk=' + s.SDKVersion + ',model=' + s.model);
   } catch (e) { fail('env', e.message); }
 
-  // ── 1. Mock storage (simulate logged-in user) ──
-  try {
-    await mp.mockWxMethod('getStorageSync', JSON.stringify({ openid: 'e2e_test', nickname: 'E2ETester' }));
-    pass('mock:storage_login');
-  } catch (e) { skip('mock', e.message); }
 
   // ── 2. Tab 导航 ──
   const tabs = [
