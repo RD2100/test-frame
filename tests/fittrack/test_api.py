@@ -449,34 +449,39 @@ class TestAdminAuth(unittest.TestCase):
     def test_create_admin(self):
         """创建新管理员"""
         token = admin_token()
+        # 使用时间戳确保用户名唯一，避免跨测试状态残留
+        ts = int(time.time() * 1000) % 100000
         data = call_ok("adminAuth", {
             "action": "createAdmin", "token": token,
-            "username": "testadmin", "password": "test123456", "role": "admin"
+            "username": f"testadmin_{ts}", "password": "test123456", "role": "admin"
         })
-        self.assertEqual(data["username"], "testadmin")
+        self.assertIn("testadmin_", data["username"])
         self.assertEqual(data["role"], "admin")
 
     def test_create_admin_duplicate_username(self):
         """重复用户名应创建失败"""
         token = admin_token()
+        ts = int(time.time() * 1000) % 100000
+        dup_name = f"dup_admin_{ts}"
         # 先创建
         call_ok("adminAuth", {
             "action": "createAdmin", "token": token,
-            "username": "dup_admin", "password": "test123456"
+            "username": dup_name, "password": "test123456"
         })
         # 重复创建
         resp = call("adminAuth", {
             "action": "createAdmin", "token": token,
-            "username": "dup_admin", "password": "test123456"
+            "username": dup_name, "password": "test123456"
         })
         self.assertNotEqual(resp["code"], 0)
 
     def test_create_admin_short_password(self):
         """密码太短应创建失败"""
         token = admin_token()
+        ts = int(time.time() * 1000) % 100000
         resp = call("adminAuth", {
             "action": "createAdmin", "token": token,
-            "username": "shortpw_admin", "password": "12345"
+            "username": f"shortpw_{ts}", "password": "12345"
         })
         self.assertNotEqual(resp["code"], 0)
 
@@ -491,18 +496,19 @@ class TestAdminAuth(unittest.TestCase):
     def test_create_admin_non_super(self):
         """非super_admin创建管理员应失败"""
         token = admin_token()
+        ts = int(time.time() * 1000) % 100000
         # 先创建一个普通admin
         new_admin = call_ok("adminAuth", {
             "action": "createAdmin", "token": token,
-            "username": "normal_admin", "password": "normal123456", "role": "admin"
+            "username": f"normal_admin_{ts}", "password": "normal123456", "role": "admin"
         })
         # 用普通admin登录
-        login_data = call_ok("adminAuth", {"action": "login", "username": "normal_admin", "password": "normal123456"})
+        login_data = call_ok("adminAuth", {"action": "login", "username": f"normal_admin_{ts}", "password": "normal123456"})
         normal_token = login_data["token"]
         # 尝试创建管理员
         resp = call("adminAuth", {
             "action": "createAdmin", "token": normal_token,
-            "username": "should_fail", "password": "test123456"
+            "username": f"should_fail_{ts}", "password": "test123456"
         })
         self.assertNotEqual(resp["code"], 0)
 

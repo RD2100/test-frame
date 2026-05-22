@@ -1,7 +1,7 @@
-"""FitTrack 模拟云函数服务器 — 覆盖全部12个云函数
+"""FitTrack 模拟云函数服务器
 
 模拟微信云开发后端，用于离线测试。
-覆盖: login / getExercises / getPlans / saveWorkout / planTemplates / seedExercises
+覆盖全部12个云函数: login / getExercises / getPlans / saveWorkout / planTemplates / seedExercises
 + adminAuth / adminExercises / adminPlans / adminUsers / adminStats / adminSeed
 """
 
@@ -13,7 +13,7 @@ import base64
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
-PORT = 8765
+PORT = 8765  # Same port as demo mock server
 
 # ── 种子数据 ──
 
@@ -67,722 +67,897 @@ USERS = {}
 WORKOUTS = []
 ADMINS = {
     "admin_001": {
-        "_id": "admin_001", "username": "admin", "password": hashlib.sha256("admin123".encode()).hexdigest(),
+        "_id": "admin_001", "username": "admin",
+        "password": hashlib.sha256("admin123".encode()).hexdigest(),
         "role": "super_admin", "createdAt": time.time() - 86400 * 90
     }
 }
 ADMIN_TOKENS = {}  # token -> admin_id
-EXERCISES_DB = list(SAMPLE_EXERCISES)
+EXERCISES_DB = list(SAMPLE_EXERCISES)  # 可增删改的副本
 PLANS_DB = list(SAMPLE_PLANS)
 PERSONAL_RECORDS = {}  # openid -> { exerciseId -> { weight, reps, volume, date } }
-BODY_METRICS_DB = {}  # openid -> [{ date, weight, bodyFat, ... }]
 SEED_STATS = {"imported": 85, "lastImport": time.time() - 86400 * 7}
-_next_id = [100]  # 可变计数器，用于生成唯一ID
 
 
-def _gen_id(prefix="id"):
-    _next_id[0] += 1
-    return f"{prefix}_{_next_id[0]:04d}"
+class FitTrackHandler(BaseHTTPRequestHandler):
+    """处理所有 /api/{functionName} 请求"""
 
+    def log_message(self, fmt, *args):
+        pass  # 静默日志，避免测试噪音
 
-def _make_token(admin_id):
-    """生成简单JWT-like token"""
-    payload = f"{admin_id}:{time.time()}:{random.randint(10000, 99999)}"
-    token = base64.b64encode(payload.encode()).decode()
-    ADMIN_TOKENS[token] = admin_id
-    return token
+    # ── 通用响应 ──
 
+    def _json(self, code, data=None, msg="ok"):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        body = {"code": code, "msg": msg}
+        if data is not None:
+            body["data"] = data
+        self.wfile.write(json.dumps(body, ensure_ascii=False).encode())
 
-def _verify_token(token):
-    """验证token，返回admin_id或None"""
-    return ADMIN_TOKENS.get(token)
+    def _ok(self, data=None, msg="ok"):
+        self._json(0, data, msg)
 
+    def _err(self, msg="error", code=-1):
+        self._json(code, None, msg)
 
-class FitTrackMockHandler(BaseHTTPRequestHandler):
-    """模拟 FitTrack 云函数 API"""
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        if length == 0:
+            return {}
+        raw = self.rfile.read(length)
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {}
+
+    def _require_auth(self, body):
+        """验证管理员token，返回admin_id或None"""
+        token = body.get("token", "")
+        admin_id = ADMIN_TOKENS.get(token)
+        if not admin_id:
+            return None
+        return admin_id
+
+    def _get_openid(self, body):
+        """从请求中获取openid，默认mock_openid_1001"""
+        return body.get("userInfo", {}).get("openId", "mock_openid_1001")
+
+    # ── 路由 ──
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if not path.startswith("/api/"):
+            self._err("invalid path")
+            return
+        fn = path[5:]  # 去掉 /api/
         body = self._read_body()
-
-        if path == "/api/login":
-            self._handle_login(body)
-        elif path == "/api/getExercises":
-            self._handle_getExercises(body)
-        elif path == "/api/getPlans":
-            self._handle_getPlans(body)
-        elif path == "/api/saveWorkout":
-            self._handle_saveWorkout(body)
-        elif path == "/api/planTemplates":
-            self._handle_planTemplates(body)
-        elif path == "/api/seedExercises":
-            self._handle_seedExercises(body)
-        elif path == "/api/adminAuth":
-            self._handle_adminAuth(body)
-        elif path == "/api/adminExercises":
-            self._handle_adminExercises(body)
-        elif path == "/api/adminPlans":
-            self._handle_adminPlans(body)
-        elif path == "/api/adminUsers":
-            self._handle_adminUsers(body)
-        elif path == "/api/adminStats":
-            self._handle_adminStats(body)
-        elif path == "/api/adminSeed":
-            self._handle_adminSeed(body)
+        handler = getattr(self, f"_fn_{fn}", None)
+        if handler:
+            try:
+                handler(body)
+            except Exception as e:
+                self._err(f"server error: {e}")
         else:
-            self._json(404, {"code": -1, "message": "Unknown endpoint"})
+            self._err(f"unknown function: {fn}")
 
-    # ── 用户端 Handlers ──
+    # ══════════════════════════════════
+    # ── 用户端云函数 ──
+    # ══════════════════════════════════
 
-    def _handle_login(self, body):
-        openid = body.get("openid", f"mock_openid_{random.randint(1000, 9999)}")
+    # ── login ──
+
+    def _fn_login(self, body):
+        openid = f"mock_openid_{random.randint(1000, 9999)}"
         if openid not in USERS:
             USERS[openid] = {
-                "_id": openid, "_openid": openid,
-                "nickname": f"User_{openid[-4:]}",
-                "avatar": "", "gender": 0,
-                "height": 175, "weight": 70,
-                "goal": "general", "unit": "kg",
-                "bodyMetrics": {"height": 175, "weight": 70, "bodyFat": 15},
-                "createdAt": time.time()
+                "_id": openid, "nickname": f"用户{openid[-4:]}",
+                "avatarUrl": "", "createdAt": time.time(),
+                "bodyMetrics": {"height": 175, "weight": 70},
+                "level": 1, "totalWorkouts": 0
             }
-        user = USERS[openid]
-        self._json(200, {"code": 0, "openid": openid, "userInfo": user, "data": user})
+        self._ok(USERS[openid])
 
-    def _handle_getExercises(self, body):
-        # 支持两种调用方式: {action, data:{}} 或扁平 {category, keyword, ...}
+    # ── getExercises ──
+
+    def _fn_getExercises(self, body):
+        keyword = body.get("keyword", "").strip()
+        category = body.get("category", "").strip()
+        page = max(1, body.get("page", 1))
+        pageSize = min(50, max(1, body.get("pageSize", 20)))
+        difficulty = body.get("difficulty", "").strip()
+        equipment = body.get("equipment", "").strip()
+
+        results = list(EXERCISES_DB)
+        # 只返回active状态，除非指定includeInactive
+        if not body.get("includeInactive"):
+            results = [e for e in results if e.get("status") == "active"]
+        if keyword:
+            results = [e for e in results if keyword.lower() in e["name"].lower()]
+        if category:
+            results = [e for e in results if e["category"] == category]
+        if difficulty:
+            results = [e for e in results if e["difficulty"] == difficulty]
+        if equipment:
+            results = [e for e in results if e["equipment"] == equipment]
+
+        total = len(results)
+        start = (page - 1) * pageSize
+        items = results[start:start + pageSize]
+        self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
+    # ── getPlans ──
+
+    def _fn_getPlans(self, body):
         action = body.get("action", "list")
-        data = body.get("data", body)  # 扁平参数兼容
+        openid = self._get_openid(body)
 
         if action == "list":
-            page = data.get("page", 1)
-            page_size = data.get("pageSize", 20)
-            category = data.get("category")
-            keyword = data.get("keyword", "")
-            difficulty = data.get("difficulty")
-            equipment = data.get("equipment")
-            items = [e for e in EXERCISES_DB if e["status"] == "active"]
-            if category:
-                items = [e for e in items if e["category"] == category]
-            if keyword:
-                items = [e for e in items if keyword.lower() in e["name"].lower()]
-            if difficulty:
-                items = [e for e in items if e.get("difficulty") == difficulty]
-            if equipment:
-                items = [e for e in items if e.get("equipment") == equipment]
-            start = (page - 1) * page_size
-            self._json(200, {
-                "code": 0, "data": {
-                    "items": items[start:start + page_size],
-                    "total": len(items), "page": page, "pageSize": page_size
-                }
-            })
-
-        elif action == "detail":
-            ex_id = data.get("id")
-            ex = next((e for e in EXERCISES_DB if e["_id"] == ex_id), None)
-            if ex:
-                self._json(200, {"code": 0, "data": ex})
-            else:
-                self._json(200, {"code": -1, "message": "Not found"})
-
-        elif action == "search":
-            keyword = data.get("keyword", "")
-            items = [e for e in EXERCISES_DB
-                     if e["status"] == "active" and keyword.lower() in e["name"].lower()]
-            self._json(200, {"code": 0, "data": items})
-
-        elif action == "byCategory":
-            category = data.get("category")
-            items = [e for e in EXERCISES_DB
-                     if e["status"] == "active" and (not category or e["category"] == category)]
-            self._json(200, {"code": 0, "data": items})
-
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
-
-    def _handle_getPlans(self, body):
-        action = body.get("action", "list")
-        if action == "list":
-            goal = body.get("goal")
-            page = body.get("page", 1)
-            page_size = body.get("pageSize", 20)
-            plans = list(PLANS_DB)
+            goal = body.get("goal", "").strip()
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            results = list(PLANS_DB)
+            # 用户只能看到自己的或模板或被分配的
+            results = [p for p in results
+                       if p.get("isTemplate")
+                       or p.get("createdBy") == openid
+                       or (p.get("assignedTo") and openid in p.get("assignedTo", []))]
             if goal:
-                plans = [p for p in plans if p.get("goal") == goal]
-            start = (page - 1) * page_size
-            self._json(200, {"code": 0, "data": {
-                "items": plans[start:start + page_size],
-                "total": len(plans), "page": page, "pageSize": page_size
-            }})
+                results = [p for p in results if p.get("goal") == goal]
+            total = len(results)
+            start = (page - 1) * pageSize
+            items = results[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
         elif action == "detail":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if plan:
-                self._json(200, {"code": 0, "data": plan})
+                self._ok(plan)
             else:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
         elif action == "create":
-            name = body.get("name", "")
+            name = body.get("name", "").strip()
             if not name:
-                self._json(200, {"code": -1, "message": "Name required"})
+                self._err("plan name required")
                 return
-            plan = {
-                "_id": _gen_id("plan"), "name": name,
-                "goal": body.get("goal", "general"),
-                "frequency": body.get("frequency", 3),
-                "days": body.get("days", []),
-                "isActive": False, "isTemplate": False,
-                "createdBy": body.get("openid", "mock_user"),
+            new_id = f"plan_{len(PLANS_DB) + 1:03d}"
+            new_plan = {
+                "_id": new_id, "name": name, "goal": body.get("goal", "general"),
+                "frequency": body.get("frequency", 3), "days": body.get("days", []),
+                "isActive": True, "isTemplate": False, "createdBy": openid,
                 "assignedTo": [], "createdAt": time.time()
             }
-            PLANS_DB.append(plan)
-            self._json(200, {"code": 0, "data": plan})
+            PLANS_DB.append(new_plan)
+            self._ok(new_plan)
         elif action == "update":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if not plan:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
                 return
-            for k, v in body.items():
-                if k not in ("action", "planId") and v is not None:
-                    plan[k] = v
-            self._json(200, {"code": 0, "data": plan})
+            for key in ["name", "goal", "frequency", "days", "isActive"]:
+                if key in body:
+                    plan[key] = body[key]
+            self._ok(plan)
         elif action == "delete":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             idx = next((i for i, p in enumerate(PLANS_DB) if p["_id"] == plan_id), -1)
             if idx < 0:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
                 return
             PLANS_DB.pop(idx)
-            self._json(200, {"code": 0, "data": {"deleted": plan_id}})
-        elif action == "active":
-            plan = next((p for p in PLANS_DB if p.get("isActive")), None)
-            if plan:
-                self._json(200, {"code": 0, "data": plan})
-            else:
-                self._json(200, {"code": 0, "data": None})
+            self._ok({"deleted": plan_id})
         else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            self._err(f"unknown action: {action}")
 
-    def _handle_saveWorkout(self, body):
+    # ── saveWorkout ──
+
+    def _fn_saveWorkout(self, body):
         action = body.get("action", "save")
-        if action == "save":
-            exercises = body.get("exercises", [])
-            total_sets = sum(len(ex.get("sets", [])) for ex in exercises)
-            total_volume = sum(
-                s.get("weight", 0) * s.get("reps", 0)
-                for ex in exercises for s in ex.get("sets", [])
-            )
-            wk = {
-                "_id": _gen_id("wk"), "planId": body.get("planId"),
-                "planName": body.get("planName", ""),
-                "exercises": exercises, "status": "completed",
-                "totalSets": total_sets, "totalVolume": total_volume,
-                "startTime": time.time(), "endTime": time.time() + body.get("duration", 1800),
-                "duration": body.get("duration", 0), "volume": body.get("volume", total_volume),
+        openid = self._get_openid(body)
+
+        # 确保用户存在（saveWorkout可能由未login的用户触发）
+        if openid not in USERS:
+            USERS[openid] = {
+                "_id": openid, "nickname": f"用户{openid[-4:]}",
+                "avatarUrl": "", "createdAt": time.time(),
+                "bodyMetrics": {"height": 175, "weight": 70},
+                "level": 1, "totalWorkouts": 0
+            }
+
+        if action == "save" or action == "start":
+            wid = f"wk_{int(time.time())}_{random.randint(100, 999)}"
+            workout = {
+                "_id": wid, "userId": openid,
+                "planId": body.get("planId", ""), "planName": body.get("planName", ""),
+                "dayIndex": body.get("dayIndex", 0),
+                "exercises": body.get("exercises", []),
+                "status": "in_progress" if action == "start" else body.get("status", "completed"),
+                "startTime": time.time(),
+                "endTime": None, "duration": 0,
+                "totalSets": 0, "totalVolume": 0,
+                "notes": body.get("notes", ""),
                 "createdAt": time.time()
             }
-            WORKOUTS.append(wk)
-            self._json(200, {"code": 0, "data": wk})
-        elif action == "start":
-            exercises = body.get("exercises", [])
-            wk = {
-                "_id": _gen_id("wk"), "planId": body.get("planId"),
-                "planName": body.get("planName", ""),
-                "exercises": exercises, "status": "in_progress",
-                "startTime": time.time(), "endTime": None,
-                "duration": 0, "totalSets": 0, "totalVolume": 0,
-                "createdAt": time.time()
-            }
-            WORKOUTS.append(wk)
-            self._json(200, {"code": 0, "data": wk})
+            # save且包含exercises时计算总量
+            if action == "save" and workout["exercises"]:
+                total_sets = 0
+                total_volume = 0
+                for ex in workout["exercises"]:
+                    for s in ex.get("sets", []):
+                        total_sets += 1
+                        total_volume += s.get("weight", 0) * s.get("reps", 0)
+                workout["totalSets"] = total_sets
+                workout["totalVolume"] = total_volume
+            WORKOUTS.append(workout)
+            if openid in USERS:
+                USERS[openid]["totalWorkouts"] = USERS[openid].get("totalWorkouts", 0) + 1
+            self._ok(workout)
+
         elif action == "updateSet":
-            wid = body.get("workoutId")
-            wk = next((w for w in WORKOUTS if w["_id"] == wid), None)
-            if not wk:
-                self._json(200, {"code": -1, "message": "Not found"})
+            wid = body.get("workoutId", "")
+            workout = next((w for w in WORKOUTS if w["_id"] == wid), None)
+            if not workout:
+                self._err("workout not found", 404)
                 return
-            ex_idx = body.get("exerciseIndex", 0)
-            set_idx = body.get("setIndex", 0)
-            set_data = body.get("setData", {})
-            if ex_idx < len(wk["exercises"]) and set_idx < len(wk["exercises"][ex_idx].get("sets", [])):
-                wk["exercises"][ex_idx]["sets"][set_idx].update(set_data)
-            self._json(200, {"code": 0, "data": wk})
+            ex_idx = body.get("exerciseIndex", -1)
+            set_idx = body.get("setIndex", -1)
+            setData = body.get("setData", {})
+            if 0 <= ex_idx < len(workout["exercises"]):
+                sets = workout["exercises"][ex_idx].get("sets", [])
+                if 0 <= set_idx < len(sets):
+                    sets[set_idx].update(setData)
+                else:
+                    sets.append(setData)
+            self._ok(workout)
+
         elif action == "complete":
-            wid = body.get("workoutId")
-            wk = next((w for w in WORKOUTS if w["_id"] == wid), None)
-            if not wk:
-                self._json(200, {"code": -1, "message": "Not found"})
+            wid = body.get("workoutId", "")
+            workout = next((w for w in WORKOUTS if w["_id"] == wid), None)
+            if not workout:
+                self._err("workout not found", 404)
                 return
-            wk["status"] = "completed"
-            wk["endTime"] = time.time()
-            wk["duration"] = body.get("duration", 0)
-            # 更新PR
-            for ex in wk.get("exercises", []):
-                ex_id = ex.get("exerciseId", "")
+            workout["status"] = "completed"
+            workout["endTime"] = time.time()
+            workout["duration"] = body.get("duration", workout["endTime"] - workout.get("startTime", workout["endTime"]))
+            # 重新计算总量
+            total_sets = 0
+            total_volume = 0
+            for ex in workout.get("exercises", []):
                 for s in ex.get("sets", []):
-                    w, r = s.get("weight", 0), s.get("reps", 0)
-                    if w > 0 and r > 0:
-                        openid = "mock_user"
-                        if openid not in PERSONAL_RECORDS:
-                            PERSONAL_RECORDS[openid] = {}
-                        cur = PERSONAL_RECORDS[openid].get(ex_id, {"weight": 0, "reps": 0, "volume": 0})
-                        if w > cur["weight"]:
-                            cur["weight"] = w
-                        if r > cur["reps"]:
-                            cur["reps"] = r
-                        vol = w * r
-                        if vol > cur["volume"]:
-                            cur["volume"] = vol
-                        cur["date"] = time.time()
-                        PERSONAL_RECORDS[openid][ex_id] = cur
-            self._json(200, {"code": 0, "data": wk})
+                    total_sets += 1
+                    total_volume += s.get("weight", 0) * s.get("reps", 0)
+            workout["totalSets"] = total_sets
+            workout["totalVolume"] = total_volume
+            # 自动更新个人记录
+            self._update_personal_records(openid, workout)
+            self._ok(workout)
+
         elif action == "history":
-            page = body.get("page", 1)
-            page_size = body.get("pageSize", 20)
-            status = body.get("status")
-            items = list(WORKOUTS)
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            status = body.get("status", "")
+            user_workouts = [w for w in WORKOUTS if w["userId"] == openid]
             if status:
-                items = [w for w in items if w.get("status") == status]
-            items.reverse()
-            start = (page - 1) * page_size
-            self._json(200, {"code": 0, "data": {
-                "items": items[start:start + page_size],
-                "total": len(items), "page": page, "pageSize": page_size
-            }})
+                user_workouts = [w for w in user_workouts if w["status"] == status]
+            user_workouts.sort(key=lambda w: w.get("createdAt", 0), reverse=True)
+            total = len(user_workouts)
+            start = (page - 1) * pageSize
+            items = user_workouts[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
         elif action == "detail":
-            wid = body.get("workoutId")
-            wk = next((w for w in WORKOUTS if w["_id"] == wid), None)
-            if wk:
-                self._json(200, {"code": 0, "data": wk})
+            wid = body.get("workoutId", "")
+            workout = next((w for w in WORKOUTS if w["_id"] == wid), None)
+            if workout:
+                self._ok(workout)
             else:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("workout not found", 404)
+
         elif action == "updateProfile":
-            profile = body.get("profile", {})
-            nickname = profile.get("nickname", "")
-            self._json(200, {"code": 0, "data": {"nickname": nickname, "updated": True}})
+            if openid not in USERS:
+                self._err("user not found", 404)
+                return
+            profile_updates = body.get("profile", {})
+            for key in ["nickname", "avatarUrl"]:
+                if key in profile_updates:
+                    USERS[openid][key] = profile_updates[key]
+            if "bodyMetrics" in profile_updates:
+                USERS[openid].setdefault("bodyMetrics", {}).update(profile_updates["bodyMetrics"])
+            self._ok(USERS[openid])
+
         elif action == "personalRecords":
-            self._json(200, {"code": 0, "data": PERSONAL_RECORDS.get("mock_user", {})})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            records = PERSONAL_RECORDS.get(openid, {})
+            self._ok(records)
 
-    def _handle_planTemplates(self, body):
+        else:
+            self._err(f"unknown action: {action}")
+
+    def _update_personal_records(self, openid, workout):
+        """自动更新个人记录（完成训练时调用）"""
+        if openid not in PERSONAL_RECORDS:
+            PERSONAL_RECORDS[openid] = {}
+        records = PERSONAL_RECORDS[openid]
+        for ex in workout.get("exercises", []):
+            ex_id = ex.get("exerciseId", "")
+            if not ex_id:
+                continue
+            for s in ex.get("sets", []):
+                weight = s.get("weight", 0)
+                reps = s.get("reps", 0)
+                volume = weight * reps
+                if ex_id not in records:
+                    records[ex_id] = {"weight": 0, "reps": 0, "volume": 0, "date": 0}
+                if weight > records[ex_id]["weight"]:
+                    records[ex_id]["weight"] = weight
+                    records[ex_id]["date"] = time.time()
+                if reps > records[ex_id]["reps"]:
+                    records[ex_id]["reps"] = reps
+                if volume > records[ex_id]["volume"]:
+                    records[ex_id]["volume"] = volume
+
+    # ── planTemplates ──
+
+    def _fn_planTemplates(self, body):
         templates = [p for p in PLANS_DB if p.get("isTemplate")]
-        if not templates:
-            templates = [
-                {"_id": "tpl_001", "name": "推拉腿分化", "goal": "hypertrophy", "frequency": 6, "isTemplate": True},
-                {"_id": "tpl_002", "name": "上下肢分化", "goal": "strength", "frequency": 4, "isTemplate": True},
-                {"_id": "tpl_003", "name": "全身训练", "goal": "general", "frequency": 3, "isTemplate": True},
-                {"_id": "tpl_004", "name": "减脂循环", "goal": "fat_loss", "frequency": 5, "isTemplate": True},
-            ]
-        self._json(200, {"code": 0, "data": {"items": templates, "total": len(templates)}})
+        self._ok({"items": templates, "total": len(templates)})
 
-    def _handle_seedExercises(self, body):
+    # ── seedExercises (用户端) ──
+
+    def _fn_seedExercises(self, body):
+        """用户端种子数据初始化"""
         action = body.get("action", "init")
+
         if action == "init":
-            self._json(200, {"code": 0, "data": {"initialized": True, "count": len(SAMPLE_EXERCISES)}})
+            # 确保基础动作存在
+            if not any(e.get("_id") == "ex_001" for e in EXERCISES_DB):
+                EXERCISES_DB.extend(SAMPLE_EXERCISES)
+            self._ok({"initialized": True, "count": len(SAMPLE_EXERCISES)})
         elif action == "status":
-            active = [e for e in EXERCISES_DB if e["status"] == "active"]
-            self._json(200, {"code": 0, "data": {"total": len(EXERCISES_DB), "active": len(active)}})
+            active = len([e for e in EXERCISES_DB if e.get("status") == "active"])
+            self._ok({"total": len(EXERCISES_DB), "active": active})
         else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            self._err(f"unknown action: {action}")
 
-    # ── 管理端 Handlers ──
+    # ══════════════════════════════════
+    # ── 管理端云函数 ──
+    # ══════════════════════════════════
 
-    def _handle_adminAuth(self, body):
-        action = body.get("action", "")
+    # ── adminAuth ──
+
+    def _fn_adminAuth(self, body):
+        action = body.get("action", "login")
+
         if action == "login":
-            username = body.get("username", "")
-            password = body.get("password", "")
+            username = body.get("username", "").strip()
+            password = body.get("password", "").strip()
             if not username or not password:
-                self._json(200, {"code": -1, "message": "Credentials required"})
+                self._err("用户名和密码不能为空", 1001)
                 return
             pw_hash = hashlib.sha256(password.encode()).hexdigest()
             admin = next((a for a in ADMINS.values()
                           if a["username"] == username and a["password"] == pw_hash), None)
             if not admin:
-                self._json(200, {"code": -1, "message": "Invalid credentials"})
+                self._err("用户名或密码错误", 1002)
                 return
-            token = _make_token(admin["_id"])
-            self._json(200, {"code": 0, "data": {"token": token, "admin": admin}})
+            token = base64.b64encode(f"{admin['_id']}:{int(time.time())}".encode()).decode()
+            ADMIN_TOKENS[token] = admin["_id"]
+            self._ok({"token": token, "admin": {
+                "_id": admin["_id"], "username": admin["username"], "role": admin["role"]}})
+
         elif action == "verify":
             token = body.get("token", "")
-            admin_id = _verify_token(token)
-            if admin_id and admin_id in ADMINS:
-                self._json(200, {"code": 0, "data": {"valid": True, "admin": ADMINS[admin_id]}})
-            else:
-                self._json(200, {"code": -1, "message": "Invalid token"})
+            admin_id = ADMIN_TOKENS.get(token)
+            if not admin_id or admin_id not in ADMINS:
+                self._err("token无效或已过期", 1003)
+                return
+            admin = ADMINS[admin_id]
+            self._ok({"valid": True, "admin": {
+                "_id": admin["_id"], "username": admin["username"], "role": admin["role"]}})
+
         elif action == "changePassword":
-            token = body.get("token", "")
-            admin_id = _verify_token(token)
+            admin_id = self._require_auth(body)
             if not admin_id:
-                self._json(200, {"code": -1, "message": "Auth required"})
+                self._err("未授权", 1003)
                 return
             old_pw = body.get("oldPassword", "")
             new_pw = body.get("newPassword", "")
+            if not old_pw or not new_pw:
+                self._err("旧密码和新密码不能为空", 1001)
+                return
+            old_hash = hashlib.sha256(old_pw.encode()).hexdigest()
+            if ADMINS[admin_id]["password"] != old_hash:
+                self._err("旧密码错误", 1004)
+                return
             if len(new_pw) < 6:
-                self._json(200, {"code": -1, "message": "Password too short"})
+                self._err("新密码至少6位", 1005)
                 return
-            admin = ADMINS[admin_id]
-            if admin["password"] != hashlib.sha256(old_pw.encode()).hexdigest():
-                self._json(200, {"code": -1, "message": "Wrong old password"})
-                return
-            admin["password"] = hashlib.sha256(new_pw.encode()).hexdigest()
-            self._json(200, {"code": 0, "data": {"changed": True}})
+            ADMINS[admin_id]["password"] = hashlib.sha256(new_pw.encode()).hexdigest()
+            self._ok({"changed": True})
+
         elif action == "createAdmin":
-            token = body.get("token", "")
-            admin_id = _verify_token(token)
-            if not admin_id or ADMINS.get(admin_id, {}).get("role") != "super_admin":
-                self._json(200, {"code": -1, "message": "Auth required or not super_admin"})
+            admin_id = self._require_auth(body)
+            if not admin_id:
+                self._err("未授权", 1003)
                 return
-            username = body.get("username", "")
-            password = body.get("password", "")
-            role = body.get("role", "editor")
-            if not username or len(password) < 6:
-                self._json(200, {"code": -1, "message": "Invalid username or password too short"})
+            if ADMINS[admin_id]["role"] != "super_admin":
+                self._err("权限不足，仅super_admin可创建管理员", 1006)
+                return
+            username = body.get("username", "").strip()
+            password = body.get("password", "").strip()
+            role = body.get("role", "admin")
+            if not username or not password:
+                self._err("用户名和密码不能为空", 1001)
+                return
+            if len(password) < 6:
+                self._err("密码至少6位", 1005)
                 return
             if any(a["username"] == username for a in ADMINS.values()):
-                self._json(200, {"code": -1, "message": "Username exists"})
+                self._err("用户名已存在", 1007)
                 return
-            new_admin = {
-                "_id": _gen_id("admin"), "username": username,
+            new_id = f"admin_{len(ADMINS) + 1:03d}"
+            ADMINS[new_id] = {
+                "_id": new_id, "username": username,
                 "password": hashlib.sha256(password.encode()).hexdigest(),
                 "role": role, "createdAt": time.time()
             }
-            ADMINS[new_admin["_id"]] = new_admin
-            self._json(200, {"code": 0, "data": new_admin})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            self._ok({"_id": new_id, "username": username, "role": role})
 
-    def _handle_adminExercises(self, body):
+        else:
+            self._err(f"unknown action: {action}")
+
+    # ── adminExercises ──
+
+    def _fn_adminExercises(self, body):
         action = body.get("action", "list")
-        token = body.get("token", "")
-        if not _verify_token(token):
-            self._json(200, {"code": -1, "message": "Auth required"})
+        admin_id = self._require_auth(body)
+        if not admin_id:
+            self._err("未授权", 1003)
             return
 
         if action == "list":
-            category = body.get("category")
-            keyword = body.get("keyword", "")
-            status = body.get("status")
-            items = list(EXERCISES_DB)
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            category = body.get("category", "")
+            status = body.get("status", "")
+            keyword = body.get("keyword", "").strip()
+            results = list(EXERCISES_DB)
             if category:
-                items = [e for e in items if e["category"] == category]
-            if keyword:
-                items = [e for e in items if keyword.lower() in e["name"].lower()]
+                results = [e for e in results if e["category"] == category]
             if status:
-                items = [e for e in items if e.get("status") == status]
-            self._json(200, {"code": 0, "data": {"items": items, "total": len(items)}})
+                results = [e for e in results if e.get("status") == status]
+            if keyword:
+                results = [e for e in results if keyword.lower() in e["name"].lower()]
+            total = len(results)
+            start = (page - 1) * pageSize
+            items = results[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
         elif action == "detail":
-            ex_id = body.get("exerciseId")
+            ex_id = body.get("exerciseId", "")
             ex = next((e for e in EXERCISES_DB if e["_id"] == ex_id), None)
             if ex:
-                self._json(200, {"code": 0, "data": ex})
+                self._ok(ex)
             else:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("exercise not found", 404)
+
         elif action == "create":
-            name = body.get("name", "")
-            category = body.get("category", "")
+            name = body.get("name", "").strip()
+            category = body.get("category", "").strip()
             if not name or not category:
-                self._json(200, {"code": -1, "message": "Name and category required"})
+                self._err("name和category必填", 1001)
                 return
-            ex = {
-                "_id": _gen_id("ex"), "name": name,
-                "category": category, "difficulty": body.get("difficulty", "beginner"),
-                "equipment": body.get("equipment", ""), "muscleGroups": body.get("muscleGroups", []),
-                "status": "active", "createdBy": "admin", "createdAt": time.time()
+            new_id = f"ex_{len(EXERCISES_DB) + 1:03d}"
+            new_ex = {
+                "_id": new_id, "name": name, "category": category,
+                "difficulty": body.get("difficulty", "beginner"),
+                "equipment": body.get("equipment", ""),
+                "muscleGroups": body.get("muscleGroups", []),
+                "description": body.get("description", ""),
+                "status": body.get("status", "active"),
+                "createdBy": admin_id, "createdAt": time.time()
             }
-            EXERCISES_DB.append(ex)
-            self._json(200, {"code": 0, "data": ex})
+            EXERCISES_DB.append(new_ex)
+            self._ok(new_ex)
+
         elif action == "update":
-            ex_id = body.get("exerciseId")
+            ex_id = body.get("exerciseId", "")
             ex = next((e for e in EXERCISES_DB if e["_id"] == ex_id), None)
             if not ex:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("exercise not found", 404)
                 return
-            for k, v in body.items():
-                if k not in ("action", "token", "exerciseId") and v is not None:
-                    ex[k] = v
-            self._json(200, {"code": 0, "data": ex})
+            for key in ["name", "category", "difficulty", "equipment", "muscleGroups", "description", "status"]:
+                if key in body:
+                    ex[key] = body[key]
+            ex["updatedBy"] = admin_id
+            ex["updatedAt"] = time.time()
+            self._ok(ex)
+
         elif action == "delete":
-            ex_id = body.get("exerciseId")
+            ex_id = body.get("exerciseId", "")
             idx = next((i for i, e in enumerate(EXERCISES_DB) if e["_id"] == ex_id), -1)
             if idx < 0:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("exercise not found", 404)
                 return
             EXERCISES_DB.pop(idx)
-            self._json(200, {"code": 0, "data": {"deleted": ex_id}})
+            self._ok({"deleted": ex_id})
+
         elif action == "batchStatus":
             ids = body.get("exerciseIds", [])
             new_status = body.get("status", "active")
             if not ids:
-                self._json(200, {"code": -1, "message": "IDs required"})
+                self._err("exerciseIds不能为空", 1001)
                 return
-            count = 0
-            for e in EXERCISES_DB:
-                if e["_id"] in ids:
-                    e["status"] = new_status
-                    count += 1
-            self._json(200, {"code": 0, "data": {"updated": count}})
-        elif action == "stats":
-            active = [e for e in EXERCISES_DB if e["status"] == "active"]
-            by_cat = {}
-            for e in EXERCISES_DB:
-                by_cat[e["category"]] = by_cat.get(e["category"], 0) + 1
-            by_diff = {}
-            for e in EXERCISES_DB:
-                by_diff[e.get("difficulty", "unknown")] = by_diff.get(e.get("difficulty", "unknown"), 0) + 1
-            self._json(200, {"code": 0, "data": {
-                "total": len(EXERCISES_DB), "active": len(active),
-                "byCategory": by_cat, "byDifficulty": by_diff
-            }})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            updated = 0
+            for ex in EXERCISES_DB:
+                if ex["_id"] in ids:
+                    ex["status"] = new_status
+                    updated += 1
+            self._ok({"updated": updated})
 
-    def _handle_adminPlans(self, body):
+        elif action == "stats":
+            total = len(EXERCISES_DB)
+            active = len([e for e in EXERCISES_DB if e.get("status") == "active"])
+            by_category = {}
+            by_difficulty = {}
+            for e in EXERCISES_DB:
+                by_category[e["category"]] = by_category.get(e["category"], 0) + 1
+                by_difficulty[e["difficulty"]] = by_difficulty.get(e["difficulty"], 0) + 1
+            self._ok({"total": total, "active": active, "inactive": total - active,
+                      "byCategory": by_category, "byDifficulty": by_difficulty})
+
+        else:
+            self._err(f"unknown action: {action}")
+
+    # ── adminPlans ──
+
+    def _fn_adminPlans(self, body):
         action = body.get("action", "list")
-        token = body.get("token", "")
-        if not _verify_token(token):
-            self._json(200, {"code": -1, "message": "Auth required"})
+        admin_id = self._require_auth(body)
+        if not admin_id:
+            self._err("未授权", 1003)
             return
 
         if action == "list":
-            is_template = body.get("isTemplate")
-            goal = body.get("goal")
-            items = list(PLANS_DB)
-            if is_template is not None:
-                items = [p for p in items if p.get("isTemplate") == is_template]
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            isTemplate = body.get("isTemplate")
+            goal = body.get("goal", "")
+            results = list(PLANS_DB)
+            if isTemplate is not None:
+                results = [p for p in results if p.get("isTemplate") == isTemplate]
             if goal:
-                items = [p for p in items if p.get("goal") == goal]
-            self._json(200, {"code": 0, "data": {"items": items, "total": len(items)}})
+                results = [p for p in results if p.get("goal") == goal]
+            total = len(results)
+            start = (page - 1) * pageSize
+            items = results[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
         elif action == "detail":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if plan:
-                self._json(200, {"code": 0, "data": plan})
+                self._ok(plan)
             else:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
+
         elif action == "create":
-            name = body.get("name", "")
+            name = body.get("name", "").strip()
             if not name:
-                self._json(200, {"code": -1, "message": "Name required"})
+                self._err("plan name required", 1001)
                 return
-            plan = {
-                "_id": _gen_id("plan"), "name": name,
-                "goal": body.get("goal", "general"),
-                "frequency": body.get("frequency", 3),
-                "days": body.get("days", []),
-                "isActive": False, "isTemplate": body.get("isTemplate", False),
-                "createdBy": "admin", "assignedTo": [], "createdAt": time.time()
+            new_id = f"plan_{len(PLANS_DB) + 1:03d}"
+            new_plan = {
+                "_id": new_id, "name": name, "goal": body.get("goal", "general"),
+                "frequency": body.get("frequency", 3), "days": body.get("days", []),
+                "isActive": body.get("isActive", True),
+                "isTemplate": body.get("isTemplate", False),
+                "createdBy": admin_id, "assignedTo": [],
+                "createdAt": time.time()
             }
-            PLANS_DB.append(plan)
-            self._json(200, {"code": 0, "data": plan})
+            PLANS_DB.append(new_plan)
+            self._ok(new_plan)
+
         elif action == "update":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if not plan:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
                 return
-            for k, v in body.items():
-                if k not in ("action", "token", "planId") and v is not None:
-                    plan[k] = v
-            self._json(200, {"code": 0, "data": plan})
+            for key in ["name", "goal", "frequency", "days", "isActive", "isTemplate"]:
+                if key in body:
+                    plan[key] = body[key]
+            plan["updatedBy"] = admin_id
+            plan["updatedAt"] = time.time()
+            self._ok(plan)
+
         elif action == "delete":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             idx = next((i for i, p in enumerate(PLANS_DB) if p["_id"] == plan_id), -1)
             if idx < 0:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
                 return
             PLANS_DB.pop(idx)
-            self._json(200, {"code": 0, "data": {"deleted": plan_id}})
+            self._ok({"deleted": plan_id})
+
         elif action == "setTemplate":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
+            isTemplate = body.get("isTemplate", True)
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if not plan:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("plan not found", 404)
                 return
-            plan["isTemplate"] = body.get("isTemplate", True)
-            self._json(200, {"code": 0, "data": plan})
+            plan["isTemplate"] = isTemplate
+            self._ok(plan)
+
         elif action == "assign":
-            plan_id = body.get("planId")
+            plan_id = body.get("planId", "")
             user_ids = body.get("userIds", [])
-            if not user_ids:
-                self._json(200, {"code": -1, "message": "User IDs required"})
-                return
             plan = next((p for p in PLANS_DB if p["_id"] == plan_id), None)
             if not plan:
-                self._json(200, {"code": -1, "message": "Plan not found"})
+                self._err("plan not found", 404)
                 return
-            assigned = list(set(plan.get("assignedTo", []) + user_ids))
-            plan["assignedTo"] = assigned
-            self._json(200, {"code": 0, "data": {"assignedTo": assigned}})
+            if not user_ids:
+                self._err("userIds不能为空", 1001)
+                return
+            current = plan.get("assignedTo", [])
+            for uid in user_ids:
+                if uid not in current:
+                    current.append(uid)
+            plan["assignedTo"] = current
+            self._ok(plan)
+
         elif action == "stats":
-            templates = [p for p in PLANS_DB if p.get("isTemplate")]
-            active = [p for p in PLANS_DB if p.get("isActive")]
+            total = len(PLANS_DB)
+            templates = len([p for p in PLANS_DB if p.get("isTemplate")])
+            active = len([p for p in PLANS_DB if p.get("isActive")])
             by_goal = {}
             for p in PLANS_DB:
-                by_goal[p.get("goal", "unknown")] = by_goal.get(p.get("goal", "unknown"), 0) + 1
-            self._json(200, {"code": 0, "data": {
-                "total": len(PLANS_DB), "templates": len(templates),
-                "active": len(active), "byGoal": by_goal
-            }})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+                by_goal[p.get("goal", "general")] = by_goal.get(p.get("goal", "general"), 0) + 1
+            self._ok({"total": total, "templates": templates, "active": active, "byGoal": by_goal})
 
-    def _handle_adminUsers(self, body):
+        else:
+            self._err(f"unknown action: {action}")
+
+    # ── adminUsers ──
+
+    def _fn_adminUsers(self, body):
         action = body.get("action", "list")
-        token = body.get("token", "")
-        if not _verify_token(token):
-            self._json(200, {"code": -1, "message": "Auth required"})
+        admin_id = self._require_auth(body)
+        if not admin_id:
+            self._err("未授权", 1003)
             return
 
         if action == "list":
-            keyword = body.get("keyword", "")
-            items = list(USERS.values())
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            keyword = body.get("keyword", "").strip()
+            results = list(USERS.values())
             if keyword:
-                items = [u for u in items if keyword.lower() in u.get("nickname", "").lower()]
-            self._json(200, {"code": 0, "data": {"items": items, "total": len(items)}})
+                results = [u for u in results if keyword in u.get("nickname", "")]
+            total = len(results)
+            start = (page - 1) * pageSize
+            items = results[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
         elif action == "detail":
-            user_id = body.get("userId")
+            user_id = body.get("userId", "")
             user = USERS.get(user_id)
-            if not user:
-                self._json(200, {"code": -1, "message": "Not found"})
-                return
-            user_workouts = [w for w in WORKOUTS if w.get("userId") == user_id]
-            self._json(200, {"code": 0, "data": {
-                **user, "workoutSummary": {
+            if user:
+                # 附带训练历史摘要
+                user_workouts = [w for w in WORKOUTS if w["userId"] == user_id]
+                user_data = dict(user)
+                user_data["workoutSummary"] = {
                     "totalWorkouts": len(user_workouts),
-                    "totalDuration": sum(w.get("duration", 0) for w in user_workouts),
-                    "totalVolume": sum(w.get("totalVolume", 0) for w in user_workouts)
+                    "completedWorkouts": len([w for w in user_workouts if w["status"] == "completed"]),
+                    "totalVolume": sum(w.get("totalVolume", 0) for w in user_workouts),
+                    "totalDuration": sum(w.get("duration", 0) for w in user_workouts)
                 }
-            }})
+                self._ok(user_data)
+            else:
+                self._err("user not found", 404)
+
         elif action == "update":
-            user_id = body.get("userId")
+            user_id = body.get("userId", "")
             user = USERS.get(user_id)
             if not user:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("user not found", 404)
                 return
-            for k, v in body.items():
-                if k not in ("action", "token", "userId") and v is not None:
-                    if k == "bodyMetrics":
-                        user.setdefault("bodyMetrics", {}).update(v)
-                    else:
-                        user[k] = v
-            self._json(200, {"code": 0, "data": user})
+            for key in ["nickname", "avatarUrl", "level"]:
+                if key in body:
+                    user[key] = body[key]
+            if "bodyMetrics" in body:
+                user.setdefault("bodyMetrics", {}).update(body["bodyMetrics"])
+            self._ok(user)
+
         elif action == "delete":
-            user_id = body.get("userId")
+            user_id = body.get("userId", "")
             if user_id not in USERS:
-                self._json(200, {"code": -1, "message": "Not found"})
+                self._err("user not found", 404)
                 return
             del USERS[user_id]
-            self._json(200, {"code": 0, "data": {"deleted": user_id}})
-        elif action == "workoutHistory":
-            user_id = body.get("userId")
-            items = [w for w in WORKOUTS if w.get("userId") == user_id]
-            self._json(200, {"code": 0, "data": {"items": items, "total": len(items)}})
-        elif action == "bodyMetrics":
-            user_id = body.get("userId")
-            history = BODY_METRICS_DB.get(user_id, [{"date": "2025-05-20", "weight": 70, "bodyFat": 15}])
-            self._json(200, {"code": 0, "data": {"current": history[0] if history else {}, "history": history}})
-        elif action == "personalRecords":
-            user_id = body.get("userId")
-            self._json(200, {"code": 0, "data": PERSONAL_RECORDS.get(user_id, {})})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            self._ok({"deleted": user_id})
 
-    def _handle_adminStats(self, body):
+        elif action == "workoutHistory":
+            user_id = body.get("userId", "")
+            page = max(1, body.get("page", 1))
+            pageSize = min(50, max(1, body.get("pageSize", 20)))
+            user_workouts = [w for w in WORKOUTS if w["userId"] == user_id]
+            user_workouts.sort(key=lambda w: w.get("createdAt", 0), reverse=True)
+            total = len(user_workouts)
+            start = (page - 1) * pageSize
+            items = user_workouts[start:start + pageSize]
+            self._ok({"items": items, "total": total, "page": page, "pageSize": pageSize})
+
+        elif action == "bodyMetrics":
+            user_id = body.get("userId", "")
+            user = USERS.get(user_id)
+            if not user:
+                self._err("user not found", 404)
+                return
+            metrics = user.get("bodyMetrics", {})
+            history = [
+                {"date": time.time() - 86400 * 30, "weight": metrics.get("weight", 70) + 2,
+                 "height": metrics.get("height", 175)},
+                {"date": time.time() - 86400 * 15, "weight": metrics.get("weight", 70) + 1,
+                 "height": metrics.get("height", 175)},
+                {"date": time.time(), "weight": metrics.get("weight", 70),
+                 "height": metrics.get("height", 175)},
+            ]
+            self._ok({"current": metrics, "history": history})
+
+        elif action == "personalRecords":
+            user_id = body.get("userId", "")
+            records = PERSONAL_RECORDS.get(user_id, {})
+            self._ok(records)
+
+        else:
+            self._err(f"unknown action: {action}")
+
+    # ── adminStats ──
+
+    def _fn_adminStats(self, body):
         action = body.get("action", "overview")
-        token = body.get("token", "")
-        if not _verify_token(token):
-            self._json(200, {"code": -1, "message": "Auth required"})
+        admin_id = self._require_auth(body)
+        if not admin_id:
+            self._err("未授权", 1003)
             return
 
         if action == "overview":
-            self._json(200, {"code": 0, "data": {
-                "totalUsers": len(USERS), "totalWorkouts": len(WORKOUTS),
+            self._ok({
+                "totalUsers": len(USERS),
+                "totalWorkouts": len(WORKOUTS),
                 "totalExercises": len(EXERCISES_DB),
                 "totalPlans": len(PLANS_DB),
-                "completedWorkouts": len([w for w in WORKOUTS if w.get("status") == "completed"])
-            }})
+                "activeUsers": max(1, len(USERS) // 2),
+                "completedWorkouts": len([w for w in WORKOUTS if w.get("status") == "completed"]),
+                "avgWorkoutsPerUser": round(len(WORKOUTS) / max(1, len(USERS)), 1),
+                "totalVolume": sum(w.get("totalVolume", 0) for w in WORKOUTS)
+            })
+
         elif action == "workoutTrends":
             days = body.get("days", 7)
-            trends = [{"date": f"2025-05-{22 - i:02d}", "count": random.randint(0, 5)} for i in range(days)]
-            self._json(200, {"code": 0, "data": {"trends": trends}})
+            trends = []
+            for i in range(days):
+                day_ts = time.time() - 86400 * (days - 1 - i)
+                day_count = random.randint(1, 10)
+                trends.append({"date": day_ts, "count": day_count,
+                               "volume": day_count * random.randint(500, 2000)})
+            self._ok({"trends": trends, "days": days})
+
         elif action == "userGrowth":
             days = body.get("days", 7)
-            growth = [{"date": f"2025-05-{22 - i:02d}", "newUsers": random.randint(0, 3),
-                       "totalUsers": len(USERS) + i} for i in range(days)]
-            self._json(200, {"code": 0, "data": {"growth": growth}})
-        elif action == "exerciseUsage":
-            self._json(200, {"code": 0, "data": {"usage": [], "total": 0}})
-        elif action == "popularCategories":
-            self._json(200, {"code": 0, "data": {"categories": []}})
-        elif action == "export":
-            export_type = body.get("type", "")
-            if export_type not in ("users", "workouts", "exercises"):
-                self._json(200, {"code": -1, "message": "Invalid export type"})
-                return
-            data_map = {"users": list(USERS.values()), "workouts": WORKOUTS, "exercises": EXERCISES_DB}
-            data = data_map[export_type]
-            self._json(200, {"code": 0, "data": {"type": export_type, "data": data, "count": len(data)}})
-        else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            growth = []
+            base = max(0, len(USERS) - days)
+            for i in range(days):
+                day_ts = time.time() - 86400 * (days - 1 - i)
+                new_users = random.randint(0, 5)
+                base += new_users
+                growth.append({"date": day_ts, "newUsers": new_users, "totalUsers": base})
+            self._ok({"growth": growth, "days": days})
 
-    def _handle_adminSeed(self, body):
-        action = body.get("action", "")
-        token = body.get("token", "")
-        if not _verify_token(token):
-            self._json(200, {"code": -1, "message": "Auth required"})
+        elif action == "exerciseUsage":
+            usage = {}
+            for ex in EXERCISES_DB:
+                usage[ex["_id"]] = {"name": ex["name"], "count": random.randint(0, 50)}
+            top = sorted(usage.values(), key=lambda x: x["count"], reverse=True)
+            self._ok({"usage": top[:20], "total": len(usage)})
+
+        elif action == "popularCategories":
+            categories = {}
+            for ex in EXERCISES_DB:
+                cat = ex["category"]
+                categories[cat] = categories.get(cat, 0) + random.randint(1, 20)
+            self._ok({"categories": categories})
+
+        elif action == "export":
+            export_type = body.get("type", "users")
+            if export_type == "users":
+                data = list(USERS.values())
+            elif export_type == "workouts":
+                data = WORKOUTS
+            elif export_type == "exercises":
+                data = EXERCISES_DB
+            else:
+                self._err(f"unknown export type: {export_type}", 1001)
+                return
+            self._ok({"type": export_type, "count": len(data), "data": data})
+
+        else:
+            self._err(f"unknown action: {action}")
+
+    # ── adminSeed ──
+
+    def _fn_adminSeed(self, body):
+        action = body.get("action", "import")
+        admin_id = self._require_auth(body)
+        if not admin_id:
+            self._err("未授权", 1003)
             return
 
         if action == "import":
-            count = body.get("count", 10)
-            SEED_STATS["imported"] = SEED_STATS.get("imported", 0) + count
+            count = body.get("count", 30)
+            categories = body.get("categories", CATEGORIES)
+            imported = 0
+            for i in range(count):
+                cat = categories[i % len(categories)] if isinstance(categories, list) else random.choice(CATEGORIES)
+                new_id = f"seed_{len(EXERCISES_DB) + 1:04d}"
+                EXERCISES_DB.append({
+                    "_id": new_id,
+                    "name": f"种子动作_{cat}_{i + 1}",
+                    "category": cat,
+                    "difficulty": random.choice(DIFFICULTIES),
+                    "equipment": random.choice(EQUIPMENTS),
+                    "muscleGroups": [cat],
+                    "status": "active",
+                    "isSeed": True,
+                    "createdBy": admin_id,
+                    "createdAt": time.time()
+                })
+                imported += 1
+            SEED_STATS["imported"] = imported
             SEED_STATS["lastImport"] = time.time()
-            self._json(200, {"code": 0, "data": {"imported": count}})
+            self._ok({"imported": imported})
+
         elif action == "clear":
-            removed = SEED_STATS.get("imported", 0)
-            SEED_STATS["imported"] = 0
-            self._json(200, {"code": 0, "data": {"removed": removed}})
+            before = len(EXERCISES_DB)
+            EXERCISES_DB[:] = [e for e in EXERCISES_DB if not e.get("isSeed")]
+            removed = before - len(EXERCISES_DB)
+            self._ok({"removed": removed})
+
         elif action == "stats":
-            self._json(200, {"code": 0, "data": {
+            seed_count = len([e for e in EXERCISES_DB if e.get("isSeed")])
+            self._ok({
                 "totalExercises": len(EXERCISES_DB),
-                "seedExercises": SEED_STATS.get("imported", 0),
-                "customExercises": len(EXERCISES_DB) - SEED_STATS.get("imported", 0)
-            }})
+                "seedExercises": seed_count,
+                "customExercises": len(EXERCISES_DB) - seed_count,
+                "lastImport": SEED_STATS.get("lastImport"),
+                "lastImportedCount": SEED_STATS.get("imported", 0)
+            })
+
         else:
-            self._json(200, {"code": -1, "message": "Unknown action"})
+            self._err(f"unknown action: {action}")
 
-    # ── Helpers ──
 
-    def _read_body(self) -> dict:
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            return json.loads(self.rfile.read(length)) if length > 0 else {}
-        except Exception:
-            return {}
+# ── 启动 ──
 
-    def _json(self, code, data):
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode())
-
-    def log_message(self, format, *args):
-        pass
+# 兼容旧代码的别名
+FitTrackMockHandler = FitTrackHandler
 
 
 def start_server(port=PORT):
-    server = HTTPServer(("127.0.0.1", port), FitTrackMockHandler)
+    """启动mock服务器（兼容run_tests.py调用）"""
+    server = HTTPServer(("127.0.0.1", port), FitTrackHandler)
     print(f"[FitTrack Mock] http://127.0.0.1:{port}")
     return server
 
 
+def run_server():
+    server = HTTPServer(("127.0.0.1", PORT), FitTrackHandler)
+    print(f"FitTrack mock server running on http://127.0.0.1:{PORT}")
+    server.serve_forever()
+
+
 if __name__ == "__main__":
-    srv = start_server()
-    try:
-        srv.serve_forever()
-    except KeyboardInterrupt:
-        srv.shutdown()
+    run_server()
