@@ -1,0 +1,14 @@
+project:
+  id: e2e-test
+  name: AI-Hub E2E Test
+  type: backend
+
+commands:
+  lint: python -m py_compile README.md 2>/dev/null || echo "lint ok"
+  unit_test: echo "test ok"
+
+policy:
+  forbidden_paths:
+    - ".env*"
+  protected_tests:
+    - "tests/**"
