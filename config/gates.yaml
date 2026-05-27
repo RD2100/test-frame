@@ -1,8 +1,13 @@
 # 质量门禁配置
+# blocked_behavior: 控制 blocked 工具在 pass rate 中的行为
+#   count_as_failure  — blocked 计入失败（默认，最严格）
+#   exclude           — blocked 不计入 pass rate（类似 skipped）
+#   未配置时默认 count_as_failure
 
 gates:
   # PR 级别门禁（宽松）
   pr:
+    blocked_behavior: count_as_failure
     smoke_pass_rate:
       min: 100
     crash_count:
@@ -12,6 +17,7 @@ gates:
 
   # Main 分支门禁（标准）
   main:
+    blocked_behavior: count_as_failure
     smoke_pass_rate:
       min: 100
     regression_pass_rate:
@@ -23,6 +29,7 @@ gates:
 
   # 发版门禁（严格）
   release:
+    blocked_behavior: count_as_failure
     smoke_pass_rate:
       min: 100
     regression_pass_rate:
