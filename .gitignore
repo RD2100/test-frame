@@ -42,3 +42,9 @@ test-results/
 
 # 敏感配置（模板保留，实际覆盖放这里）
 config/tools/*.local.yaml
+
+# 会话状态与生成物
+.codegraph/
+.gsd/
+.claude/blackboard/state.json*
+.claude/blackboard/*.bak
