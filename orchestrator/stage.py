@@ -3,8 +3,93 @@
 import subprocess
 import json
 import os
+import re
 import sys
+import traceback
 import importlib
+
+
+# Status constants: passed | failed | skipped | blocked
+STATUS_PASSED = "passed"
+STATUS_FAILED = "failed"
+STATUS_SKIPPED = "skipped"
+STATUS_BLOCKED = "blocked"
+
+# Sensitive field patterns for redaction (case-insensitive keys and value patterns)
+_SENSITIVE_KEY_PATTERNS = [
+    "api_key", "api_secret", "apikey", "secret_key", "secret",
+    "token", "access_token", "refresh_token", "auth_token",
+    "password", "passwd", "credential",
+]
+_SENSITIVE_VALUE_PATTERN = re.compile(
+    r'(?i)(?:api[_-]?key|token|secret|password)=([^\s,;)"\'<>]+)'
+)
+
+
+def _sanitize_error(obj):
+    """Recursively redact sensitive fields from error detail before storage.
+
+    Handles strings, dicts, and lists-of-dicts. Non-sensitive types pass through.
+    """
+    if isinstance(obj, str):
+        return _SENSITIVE_VALUE_PATTERN.sub(
+            lambda m: m.group(0).replace(m.group(1), "[REDACTED]"),
+            obj,
+        )
+    if isinstance(obj, dict):
+        return {
+            k: "[REDACTED]" if any(
+                pattern in k.lower() for pattern in _SENSITIVE_KEY_PATTERNS
+            ) else _sanitize_error(v)
+            for k, v in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_sanitize_error(item) for item in obj]
+    return obj
+
+
+def _derive_status(result: dict) -> str:
+    """Derive status string from wrapper result dict.
+    Prefers explicit 'status' key; falls back to legacy 'passed'/'skipped' keys.
+    If no status-indicating key is present, returns FAILED (never silently passes).
+    """
+    if "status" in result:
+        return result["status"]
+    if result.get("skipped"):
+        return STATUS_SKIPPED
+    if result.get("passed", False):
+        return STATUS_PASSED
+    return STATUS_FAILED
+
+
+def _stage_results_to_gate_format(stage_results: dict) -> list[dict]:
+    """Convert orchestrator _stage_results to gate_check-compatible list[dict].
+
+    _stage_results shape:
+        {stage_name: {"ok": bool, "tools": {"tool_a": "passed", "tool_b": "failed", ...}}}
+
+    Returns flat list:
+        [{"status": "passed", "tool": "tool_a", "stage": "stage_name"}, ...]
+    """
+    flat = []
+    for stage_name, stage_data in stage_results.items():
+        if not isinstance(stage_data, dict):
+            continue
+        tools = stage_data.get("tools", {})
+        for key, val in tools.items():
+            if key.endswith("_status") or key.endswith("_detail"):
+                continue
+            flat.append({
+                "status": val,
+                "tool": key,
+                "stage": stage_name,
+            })
+    return flat
+
+
+def _status_ok(status: str) -> bool:
+    """A stage is OK if all tools are passed or skipped (not failed or blocked)."""
+    return status in (STATUS_PASSED, STATUS_SKIPPED)
 
 
 class Stage:
@@ -21,6 +106,8 @@ class Stage:
         timeout = self.config.get("timeout", 300)
         retry = self.config.get("retry", 0)
         parallel = self.config.get("parallel", False)
+        if parallel:
+            print(f"  [WARN] 'parallel' flag is not yet implemented — tools run sequentially")
 
         if self.name == "evidence":
             return self._run_evidence()
@@ -31,17 +118,23 @@ class Stage:
         elif self.name == "gate":
             return self._run_gate()
 
-        all_passed = True
+        all_ok = True
         for tool in tools:
-            passed = self._run_tool(tool, retry)
-            self.results[tool] = passed
-            if not passed:
-                all_passed = False
+            status = self._run_tool(tool, retry)
+            self.results[tool] = status
+            if not _status_ok(status):
+                all_ok = False
 
-        return all_passed
+        return all_ok
 
-    def _run_tool(self, tool: str, retry: int) -> bool:
-        """通过CLI wrapper执行单个工具"""
+    def _run_tool(self, tool: str, retry: int) -> str:
+        """通过CLI wrapper执行单个工具，返回状态字符串
+
+        retry_on (from stage config, default 'exception'):
+          - exception: retry only on exceptions
+          - failed:    retry only when wrapper returns status=FAILED
+          - both:      retry on both exceptions and FAILED status
+        """
         wrapper_map = {
             "maestro": "cli.wrappers.maestro",
             "airtest": "cli.wrappers.airtest",
@@ -54,8 +147,19 @@ class Stage:
 
         module_name = wrapper_map.get(tool)
         if module_name is None:
-            print(f"  [WARN] 未知工具: {tool}")
-            return True
+            print(f"  [WARN] 未知工具: {tool} → BLOCKED")
+            self.results[tool] = STATUS_BLOCKED
+            self.results[f"{tool}_detail"] = {
+                "status": STATUS_BLOCKED,
+                "reason": "unknown_tool",
+                "tool": tool,
+            }
+            return STATUS_BLOCKED
+
+        retry_on = self.config.get("retry_on", "exception")
+        if retry_on not in ("exception", "failed", "both"):
+            print(f"  [WARN] Invalid retry_on='{retry_on}', falling back to 'exception'")
+            retry_on = "exception"
 
         for attempt in range(retry + 1):
             if attempt > 0:
@@ -65,21 +169,46 @@ class Stage:
             try:
                 module = importlib.import_module(module_name)
                 result = module.run(self.project_config)
-                passed = result.get("passed", True)
+                status = _derive_status(result)
                 self.results[f"{tool}_detail"] = result
 
-                if passed:
+                # Retry on FAILED status when configured
+                if status == STATUS_FAILED and retry_on in ("failed", "both") and attempt < retry:
+                    print(f"  [{tool}] [FAIL] retrying ({attempt + 1}/{retry})...")
+                    continue
+
+                if status == STATUS_PASSED:
                     print(f"  [{tool}] [OK] passed")
-                    return True
-                else:
+                elif status == STATUS_SKIPPED:
+                    print(f"  [{tool}] [SKIP] skipped: {result.get('reason', '')}")
+                elif status == STATUS_BLOCKED:
+                    print(f"  [{tool}] [BLOCKED] {result.get('reason', '')}")
+                elif status == STATUS_FAILED:
                     failed = result.get("failed", [])
                     print(f"  [{tool}] [FAIL] failed: {failed}")
+                return status
+
             except ImportError:
-                print(f"  [{tool}] [WARN] module not installed, skip")
-                return True
+                print(f"  [{tool}] [BLOCKED] module not installed")
+                self.results[f"{tool}_detail"] = {
+                    "status": STATUS_BLOCKED,
+                    "reason": "module_not_installed",
+                    "tool": tool,
+                }
+                return STATUS_BLOCKED
             except Exception as e:
                 print(f"  [{tool}] [FAIL] exception: {e}")
-        return False
+                if retry_on in ("exception", "both") and attempt < retry:
+                    continue
+                self.results[f"{tool}_detail"] = {
+                    "status": STATUS_FAILED,
+                    "error": _sanitize_error(str(e)),
+                    "traceback": traceback.format_exc(),
+                    "tool": tool,
+                }
+                return STATUS_FAILED
+
+        return STATUS_FAILED
 
     def _run_evidence(self) -> bool:
         """收集证据"""
@@ -91,7 +220,22 @@ class Stage:
     def _run_report(self) -> bool:
         """生成报告"""
         from aggregator.collector import collect_and_generate
-        collect_and_generate(self.project_config.get("project", {}).get("name"))
+
+        project_name = self.project_config.get("project", {}).get("name", "unknown")
+        stage_results = self.project_config.get("_stage_results", {})
+        gate_profile = self.project_config.get("_gate_profile",
+                    self.project_config.get("report", {}).get("gate_profile", "pr"))
+        playwright_config = self.project_config.get("playwright", {})
+        base_url = playwright_config.get("base_url", "")
+        profile_name = self.project_config.get("_profile", "")
+
+        collect_and_generate(
+            project_name,
+            project_config=self.project_config,
+            stage_results=stage_results,
+            profile=profile_name,
+            base_url=base_url,
+        )
         return True
 
     def _run_attribution(self) -> bool:
@@ -105,7 +249,7 @@ class Stage:
         return True
 
     def _run_gate(self) -> bool:
-        """质量门禁"""
+        """质量门禁 — 优先使用 orchestrator 执行结果，而非重新从 adapter 收集"""
         print("  [GATE] Evaluating quality gate...")
         from aggregator.collector import collect_all_results
         from orchestrator.gate import gate_check
@@ -114,8 +258,19 @@ class Stage:
                     self.project_config.get("report", {}).get("gate_profile", "pr"))
         project_name = self.project_config.get("project", {}).get("name", "unknown")
 
-        # 收集所有结果用于门禁评估
-        all_results = collect_all_results(self.project_config)
+        # Primary: use orchestrator's executed stage results (单数据源)
+        stage_results = self.project_config.get("_stage_results", {})
+        if stage_results:
+            all_results = _stage_results_to_gate_format(stage_results)
+            for r in all_results:
+                r["_source"] = "orchestrator"
+        else:
+            # Fallback: re-collect from adapters (only when no stage results exist)
+            print("  [GATE] No stage results, falling back to adapter collect...")
+            all_results = collect_all_results(self.project_config)
+            for r in all_results:
+                r["_source"] = "adapter_fallback"
+
         passed, report = gate_check(profile_name, project_name, all_results)
 
         print(report)
