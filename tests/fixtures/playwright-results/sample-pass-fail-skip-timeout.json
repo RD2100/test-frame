@@ -1,0 +1,128 @@
+{
+  "config": {
+    "configFile": "playwright.config.js",
+    "rootDir": "tests/h5",
+    "timeout": 30000,
+    "workers": 1
+  },
+  "suites": [
+    {
+      "title": "FitTrack Admin",
+      "specs": [
+        {
+          "title": "admin.spec.js",
+          "file": "tests/h5/admin.spec.js",
+          "tests": [
+            {
+              "title": "page loads successfully",
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 1234,
+                  "browser": "chromium",
+                  "retry": 0,
+                  "attachments": [
+                    {"name": "screenshot", "path": "test-results/admin-chromium/screenshot.png", "contentType": "image/png"}
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "has app container",
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 567,
+                  "browser": "chromium",
+                  "retry": 0,
+                  "attachments": []
+                }
+              ]
+            },
+            {
+              "title": "no console errors on load",
+              "status": "unexpected",
+              "results": [
+                {
+                  "status": "failed",
+                  "duration": 890,
+                  "browser": "chromium",
+                  "retry": 0,
+                  "error": {
+                    "message": "expect(received).toHaveLength(expected)\n\nExpected: 0\nReceived: 1",
+                    "stack": "Error: expect(received).toHaveLength(expected)\n    at admin.spec.js:22:48",
+                    "location": {"file": "tests/h5/admin.spec.js", "line": 22, "column": 48}
+                  },
+                  "attachments": [
+                    {"name": "screenshot", "path": "test-results/admin-chromium/screenshot-fail.png", "contentType": "image/png"},
+                    {"name": "trace", "path": "test-results/admin-chromium/trace.zip", "contentType": "application/zip"}
+                  ]
+                }
+              ]
+            },
+            {
+              "title": "mobile viewport responsive",
+              "status": "skipped",
+              "results": [
+                {
+                  "status": "skipped",
+                  "duration": 0,
+                  "browser": "firefox",
+                  "retry": 0,
+                  "attachments": []
+                }
+              ]
+            },
+            {
+              "title": "desktop viewport with slow network",
+              "status": "unexpected",
+              "results": [
+                {
+                  "status": "timedOut",
+                  "duration": 30001,
+                  "browser": "webkit",
+                  "retry": 2,
+                  "error": {
+                    "message": "Timeout 30000ms exceeded",
+                    "stack": "TimeoutError: page.goto: Timeout 30000ms exceeded\n    at explorer.spec.js:45:15"
+                  },
+                  "attachments": [
+                    {"name": "trace", "path": "test-results/admin-webkit/trace.zip", "contentType": "application/zip"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "UI Explorer MVP",
+      "specs": [
+        {
+          "title": "explorer.spec.js",
+          "file": "tests/h5/explorer.spec.js",
+          "tests": [
+            {
+              "title": "explore configured routes",
+              "status": "expected",
+              "results": [
+                {
+                  "status": "passed",
+                  "duration": 4567,
+                  "browser": "chromium",
+                  "retry": 0,
+                  "attachments": [
+                    {"name": "explorer-report", "path": "reports/ui-explorer/explorer-results.json", "contentType": "application/json"}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
