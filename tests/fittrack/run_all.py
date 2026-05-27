@@ -3,7 +3,7 @@
 import sys, os, json, uuid, time, re, threading, subprocess, http.server, socketserver, webbrowser
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FITTRACK = "D:/FitnessManagement"
+FITTRACK = os.environ.get("FITTRACK_PATH", "")
 sys.path.insert(0, PROJECT_ROOT)
 os.chdir(PROJECT_ROOT)
 
@@ -25,6 +25,11 @@ def run_cmd(cmd, cwd=None, timeout=120):
 def stage1_jest():
     global passed_total, failed_total
     print("\n[Stage 1] Jest unit tests..."); print("-" * 45)
+
+    if not FITTRACK:
+        print("  [SKIP] FITTRACK_PATH not set — cannot run FitTrack Jest tests")
+        return
+
     jest_out = os.path.join(PROJECT_ROOT, "reports", "jest-results.json")
     run_cmd(f"npx jest --json --outputFile={jest_out}", cwd=FITTRACK, timeout=60)
 
@@ -77,9 +82,9 @@ def stage2_pytest():
 def stage25_playwright():
     global passed_total, failed_total
     print("\n[Stage 2.5] Playwright H5..."); print("-" * 45)
-    admin_dir = os.path.join(FITTRACK, "admin")
-    if not os.path.exists(os.path.join(admin_dir, "dist", "index.html")):
-        print("  Admin dist not built, skipping")
+    admin_dir = os.path.join(FITTRACK, "admin") if FITTRACK else ""
+    if not FITTRACK or not os.path.exists(os.path.join(admin_dir, "dist", "index.html")):
+        print("  Admin dist not built or FITTRACK_PATH not set, skipping")
         return
 
     # Start vite preview in background

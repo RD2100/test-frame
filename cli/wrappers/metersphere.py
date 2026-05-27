@@ -13,7 +13,8 @@ def run(project_config: dict) -> dict:
 
     if not test_plan_id or not api_key:
         print("    [WARN] MeterSphere配置不完整，跳过")
-        return {"passed": True, "tool": "metersphere", "results": [], "skipped": True}
+        return {"passed": False, "tool": "metersphere", "results": [], "skipped": True,
+                "reason": "MeterSphere config incomplete (test_plan_id or api_key missing)"}
 
     print(f"    ▶ MeterSphere 接口测试 (plan={test_plan_id})")
 
@@ -48,10 +49,13 @@ def run(project_config: dict) -> dict:
                     "results": [{"report_id": report_id, "status": status}],
                 }
 
-        return {"passed": True, "tool": "metersphere", "results": [], "warning": "timeout等待"}
+        return {"passed": False, "tool": "metersphere", "results": [],
+                "skipped": True, "warning": "timeout等待", "reason": "MeterSphere poll timeout"}
     except requests.ConnectionError:
         print("    [WARN] MeterSphere 服务不可达，跳过")
-        return {"passed": True, "tool": "metersphere", "results": [], "skipped": True}
+        return {"passed": False, "tool": "metersphere", "results": [], "skipped": True,
+                "reason": "MeterSphere service unreachable"}
     except Exception as e:
         print(f"    [WARN] MeterSphere执行异常: {e}")
-        return {"passed": True, "tool": "metersphere", "results": [], "skipped": True}
+        return {"passed": False, "tool": "metersphere", "results": [], "skipped": True,
+                "reason": f"MeterSphere execution error: {str(e)[:200]}"}

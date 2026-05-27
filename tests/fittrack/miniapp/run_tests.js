@@ -1,13 +1,27 @@
-/** FitTrack 小程序 E2E 测试 — 真实 IDE 连接 */
+/** FitTrack 小程序 E2E 测试 — 真实 IDE 连接
+
+Required environment variables:
+  WECHAT_DEVTOOLS_CLI — path to 微信web开发者工具 CLI (e.g., cli.bat)
+  FITTRACK_PATH       — path to FitTrack miniapp project root
+
+If either is not set, the script exits with a clear SKIP message.
+*/
 const automator = require('miniprogram-automator');
 
-const CLI = 'D:/微信web开发者工具/cli.bat';
-const PROJECT = 'D:/FitnessManagement';
+const CLI = process.env.WECHAT_DEVTOOLS_CLI || '';
+const PROJECT = process.env.FITTRACK_PATH || '';
 const AUTO_PORT = 19520;
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function main() {
+  if (!CLI || !PROJECT) {
+    console.log('SKIP: WECHAT_DEVTOOLS_CLI and FITTRACK_PATH must be set.');
+    console.log(`  WECHAT_DEVTOOLS_CLI=${CLI || '<not set>'}`);
+    console.log(`  FITTRACK_PATH=${PROJECT || '<not set>'}`);
+    return;
+  }
+
   // Step 1: Enable auto mode on running IDE
   console.log('Enabling automation mode...');
   const { spawn } = require('child_process');
