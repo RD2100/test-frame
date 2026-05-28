@@ -25,10 +25,12 @@ async function main() {
   // Step 1: Enable auto mode on running IDE
   console.log('Enabling automation mode...');
   const { spawn } = require('child_process');
+  const isWindows = process.platform === 'win32';
   await new Promise((resolve, reject) => {
-    const c = spawn('cmd.exe', ['/c',
-      `"${CLI}" auto --project "${PROJECT}" --auto-port ${AUTO_PORT} --trust-project`]);
-    c.stderr.on('data', d => process.stderr.write(d));
+    const args = ['auto', '--project', PROJECT, '--auto-port', String(AUTO_PORT), '--trust-project'];
+    const c = isWindows
+      ? spawn('cmd.exe', ['/c', CLI, ...args])
+      : spawn(CLI, args);
     c.on('close', resolve);
     c.on('error', reject);
   });

@@ -48,6 +48,15 @@ def _sanitize_error(obj):
     return obj
 
 
+# Domain note: wrapper return contract
+# Wrappers currently use two different conventions:
+#   1. 'passed'/'skipped' booleans (most wrappers: maestro, airtest, playwright, miniapp,
+#      metersphere, wetest, pytest_api, sentry)
+#   2. 'status' string key (a few wrappers, e.g., bugly)
+# _derive_status handles both, preferring 'status', then 'skipped', then 'passed'.
+# TODO(2026-05-29): unify all wrappers to return {'status': str, 'reason': str, ...}
+# and remove the dual-convention fallback in _derive_status.
+#
 def _derive_status(result: dict) -> str:
     """Derive status string from wrapper result dict.
     Prefers explicit 'status' key; falls back to legacy 'passed'/'skipped' keys.
@@ -107,7 +116,7 @@ class Stage:
         retry = self.config.get("retry", 0)
         parallel = self.config.get("parallel", False)
         if parallel:
-            print(f"  [WARN] 'parallel' flag is not yet implemented — tools run sequentially")
+            print(f"  [WARN] 'parallel' flag is not yet implemented, tools run sequentially; set to False to suppress this warning")
 
         if self.name == "evidence":
             return self._run_evidence()
@@ -203,7 +212,7 @@ class Stage:
                 self.results[f"{tool}_detail"] = {
                     "status": STATUS_FAILED,
                     "error": _sanitize_error(str(e)),
-                    "traceback": traceback.format_exc(),
+                    "traceback": _sanitize_error(traceback.format_exc()),
                     "tool": tool,
                 }
                 return STATUS_FAILED
@@ -211,42 +220,70 @@ class Stage:
         return STATUS_FAILED
 
     def _run_evidence(self) -> bool:
-        """收集证据"""
+        """收集证据 — 返回实际状态，失败不再静默"""
         from evidence.collector import EvidenceCollector
-        collector = EvidenceCollector(self.project_config.get("project", {}).get("name"))
-        collector.collect()
-        return True
+        try:
+            collector = EvidenceCollector(self.project_config.get("project", {}).get("name"))
+            collector.collect()
+            return True
+        except Exception as e:
+            print(f"  [EVIDENCE] [FAIL] 证据收集异常: {e}")
+            self.results["evidence"] = STATUS_FAILED
+            self.results["evidence_detail"] = {
+                "status": STATUS_FAILED,
+                "error": _sanitize_error(str(e)),
+                "traceback": traceback.format_exc(),
+            }
+            return False
 
     def _run_report(self) -> bool:
-        """生成报告"""
+        """生成报告 — 返回实际状态，失败不再静默"""
         from aggregator.collector import collect_and_generate
 
-        project_name = self.project_config.get("project", {}).get("name", "unknown")
-        stage_results = self.project_config.get("_stage_results", {})
-        gate_profile = self.project_config.get("_gate_profile",
-                    self.project_config.get("report", {}).get("gate_profile", "pr"))
-        playwright_config = self.project_config.get("playwright", {})
-        base_url = playwright_config.get("base_url", "")
-        profile_name = self.project_config.get("_profile", "")
+        try:
+            project_name = self.project_config.get("project", {}).get("name", "unknown")
+            stage_results = self.project_config.get("_stage_results", {})
+            playwright_config = self.project_config.get("playwright", {})
+            base_url = playwright_config.get("base_url", "")
+            profile_name = self.project_config.get("_profile", "")
 
-        collect_and_generate(
-            project_name,
-            project_config=self.project_config,
-            stage_results=stage_results,
-            profile=profile_name,
-            base_url=base_url,
-        )
-        return True
+            collect_and_generate(
+                project_name,
+                project_config=self.project_config,
+                stage_results=stage_results,
+                profile=profile_name,
+                base_url=base_url,
+            )
+            return True
+        except Exception as e:
+            print(f"  [REPORT] [FAIL] 报告生成异常: {e}")
+            self.results["report"] = STATUS_FAILED
+            self.results["report_detail"] = {
+                "status": STATUS_FAILED,
+                "error": _sanitize_error(str(e)),
+                "traceback": traceback.format_exc(),
+            }
+            return False
 
     def _run_attribution(self) -> bool:
-        """缺陷归因"""
+        """缺陷归因 — 返回实际状态，失败不再静默"""
         from attribution.engine import AttributionEngine
-        engine = AttributionEngine()
-        engine.generate_report(
-            self.project_config.get("project", {}).get("name"),
-            self.project_config.get("report", {}).get("results_dir")
-        )
-        return True
+        try:
+            engine = AttributionEngine()
+            engine.generate_report(
+                self.project_config.get("project", {}).get("name"),
+                self.project_config.get("report", {}).get("results_dir")
+            )
+            return True
+        except Exception as e:
+            print(f"  [ATTR] [FAIL] 缺陷归因异常: {e}")
+            self.results["attribution"] = STATUS_FAILED
+            self.results["attribution_detail"] = {
+                "status": STATUS_FAILED,
+                "error": _sanitize_error(str(e)),
+                "traceback": traceback.format_exc(),
+            }
+            return False
 
     def _run_gate(self) -> bool:
         """质量门禁 — 优先使用 orchestrator 执行结果，而非重新从 adapter 收集"""
