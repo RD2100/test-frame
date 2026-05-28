@@ -41,6 +41,7 @@ def evaluate(gate_type: str, results: list[dict], crash_count: int = 0) -> tuple
         "crash_count": crash_count,
         "crash_free_rate": 100 - crash_count * 0.1,
         "critical_bugs": 0,
+        "min_evidence_count": total,  # evidence count = total test results
     }
 
     # 逐项比对

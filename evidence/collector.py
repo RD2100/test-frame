@@ -3,8 +3,25 @@
 import os
 import time
 import json
+import hashlib
 from datetime import datetime
 from pathlib import Path
+
+from evidence.signing import sign_evidence
+
+
+def _compute_sha256(filepath: str) -> str | None:
+    """Compute SHA256 hex digest of a file's content.
+
+    Returns the lowercase hex digest string, or None if the file does not
+    exist or cannot be read.  This is an integrity checksum, NOT a
+    cryptographic signature.
+    """
+    try:
+        with open(filepath, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except (OSError, IOError):
+        return None
 
 
 class EvidenceCollector:
@@ -111,12 +128,37 @@ class EvidenceIndex:
         self.evidences = []
 
     def add_evidence(self, type: str, tool: str, path: str, metadata: dict = None):
+        metadata = dict(metadata or {})  # shallow copy to avoid mutating caller's dict
+
+        # Integrity checksum — SHA256 of file content.
+        # This is an integrity checksum, NOT a cryptographic signature.
+        # It detects accidental corruption or naive tampering (e.g. replacing
+        # a screenshot file), but does NOT provide non-repudiation.
+        sha256 = _compute_sha256(path)
+        metadata["sha256"] = sha256
+
+        collected_at = datetime.now().isoformat()
+
+        # HMAC-SHA256 signature for tamper detection.
+        # Signing key is from env var EVIDENCE_SIGNING_KEY.
+        # When key is absent, signature_status="unsigned" and signature=None.
+        sig = sign_evidence(
+            evidence_type=type,
+            tool=tool,
+            path=path,
+            sha256=sha256,
+            timestamp=collected_at,
+            build_id=self.build_id,
+        )
+
         self.evidences.append({
             "type": type,
             "tool": tool,
             "path": path,
-            "metadata": metadata or {},
-            "collected_at": datetime.now().isoformat(),
+            "metadata": metadata,
+            "collected_at": collected_at,
+            "signature": sig["signature"],
+            "signature_status": sig["signature_status"],
         })
 
     def to_dict(self) -> dict:
