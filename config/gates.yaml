@@ -3,6 +3,8 @@
 gates:
   # PR 级别门禁（宽松）
   pr:
+    min_evidence_count:
+      min: 1
     smoke_pass_rate:
       min: 100
     crash_count:
@@ -12,6 +14,8 @@ gates:
 
   # Main 分支门禁（标准）
   main:
+    min_evidence_count:
+      min: 5
     smoke_pass_rate:
       min: 100
     regression_pass_rate:
@@ -23,6 +27,8 @@ gates:
 
   # 发版门禁（严格）
   release:
+    min_evidence_count:
+      min: 10
     smoke_pass_rate:
       min: 100
     regression_pass_rate:
