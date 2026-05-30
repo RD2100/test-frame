@@ -7,7 +7,6 @@ import re
 import sys
 import traceback
 import importlib
-from schema.canonical import VALID_STATUSES
 
 
 # Status constants: passed | failed | skipped | blocked
@@ -15,8 +14,6 @@ STATUS_PASSED = "passed"
 STATUS_FAILED = "failed"
 STATUS_SKIPPED = "skipped"
 STATUS_BLOCKED = "blocked"
-STATUS_ERROR = "error"
-STATUS_CANCELLED = "cancelled"
 
 # Sensitive field patterns for redaction (case-insensitive keys and value patterns)
 _SENSITIVE_KEY_PATTERNS = [
@@ -62,24 +59,16 @@ def _sanitize_error(obj):
 #
 def _derive_status(result: dict) -> str:
     """Derive status string from wrapper result dict.
-
-    Accepts explicit status key in VALID_STATUSES.
-    Falls back to legacy passed/skipped boolean keys.
-    If no status-indicating key is present, returns FAILED.
+    Prefers explicit 'status' key; falls back to legacy 'passed'/'skipped' keys.
+    If no status-indicating key is present, returns FAILED (never silently passes).
     """
-    raw_status = result.get("status")
-
-    if raw_status in VALID_STATUSES:
-        return raw_status
-
-    if result.get("skipped") is True:
+    if "status" in result:
+        return result["status"]
+    if result.get("skipped"):
         return STATUS_SKIPPED
-
-    if result.get("passed") is True:
+    if result.get("passed", False):
         return STATUS_PASSED
-
     return STATUS_FAILED
-
 
 
 def _stage_results_to_gate_format(stage_results: dict) -> list[dict]:
