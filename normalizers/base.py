@@ -157,9 +157,9 @@ def normalize_result(
         return normalize_wrapper_dict(source.get("payload", {}), context)
 
     # Future normalizers:
-    # if kind == "playwright_json":
-    #     from normalizers.playwright import normalize_playwright_json
-    #     return normalize_playwright_json(source.get("payload"), context)
+    if kind == "playwright_json":
+        from normalizers.playwright import normalize_playwright_json
+        return normalize_playwright_json(source.get("payload"), context)
     # if kind == "junit_xml":
     #     from normalizers.junit import normalize_junit_xml
     #     return normalize_junit_xml(source.get("payload"), context)
