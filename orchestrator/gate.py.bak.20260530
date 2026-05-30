@@ -21,75 +21,49 @@ def load_gate_config(gate_type: str = "pr") -> dict:
 
 
 def evaluate(gate_type: str, results: list[dict], crash_count: int = 0) -> tuple:
-    """Evaluate gate, returns (passed: bool, failures: list, metrics: dict).
+    """评估门禁，返回 (passed: bool, failures: list, metrics: dict)
 
-    Status semantics (6 states):
-    - passed:    test ran and passed
-    - failed:    test ran and failed (assertion failure)
-    - skipped:   tool not available / not configured (allowed)
-    - blocked:   preconditions not met, test could not start
-    - error:     tool/execution failure, cannot trust results
-    - cancelled: manually cancelled, CI cancelled
+    Status semantics:
+    - passed: test ran and passed
+    - failed: test ran and failed
+    - skipped: tool not available / not configured (allowed)
+    - blocked: required tool could not run
 
-    Behavior configs (from gate config):
-    - blocked_behavior:   count_as_failure (default) | exclude | block_gate
-    - error_behavior:     count_as_failure (default) | exclude | block_gate
-    - cancelled_behavior: count_as_failure (default) | exclude | block_gate
+    blocked_behavior (from gate config):
+    - count_as_failure (default): blocked 计入 pass rate 分母并视为失败
+    - exclude: blocked 不计入 pass rate（类似 skipped），但单独标记在 failures 中
     """
     rules = load_gate_config(gate_type)
     if not rules:
         return True, [], {}
 
     blocked_behavior = rules.get("blocked_behavior", "count_as_failure")
-    error_behavior = rules.get("error_behavior", "count_as_failure")
-    cancelled_behavior = rules.get("cancelled_behavior", "count_as_failure")
 
-    # Count by status (6 states)
+    # Count by status
     total = len(results)
     passed_count = sum(1 for r in results if r.get("status") == "passed")
     failed_count = sum(1 for r in results if r.get("status") == "failed")
-    skipped_count = sum(1 for r in results if r.get("status") == "skipped")
     blocked_count = sum(1 for r in results if r.get("status") == "blocked")
-    error_count = sum(1 for r in results if r.get("status") == "error")
-    cancelled_count = sum(1 for r in results if r.get("status") == "cancelled")
+    skipped_count = sum(1 for r in results if r.get("status") == "skipped")
 
-    # Compute effective pass rate based on behavior configs
-    effective_passed = passed_count
-    effective_failed = failed_count
-    gate_blocked = False
-
-    # skipped: always excluded from pass rate
-    # passed/failed: always included
-
-    for status, count, behavior in [
-        ("blocked", blocked_count, blocked_behavior),
-        ("error", error_count, error_behavior),
-        ("cancelled", cancelled_count, cancelled_behavior),
-    ]:
-        if behavior == "count_as_failure":
-            effective_failed += count
-        elif behavior == "exclude":
-            pass  # excluded from both numerator and denominator
-        elif behavior == "block_gate":
-            gate_blocked = True
-        else:
-            raise ValueError(f"Unknown behavior for {status}: {behavior}")
-
-    effective_total = effective_passed + effective_failed
+    # Compute effective counts based on blocked_behavior
+    if blocked_behavior == "exclude":
+        effective_failed = failed_count
+        effective_total = passed_count + failed_count  # exclude both blocked and skipped
+    else:
+        # count_as_failure (default): blocked counts as failure
+        effective_failed = failed_count + blocked_count
+        effective_total = passed_count + effective_failed  # exclude skipped from rate
 
     metrics = {
         "total": total,
         "passed": passed_count,
         "failed": failed_count,
-        "skipped": skipped_count,
         "blocked": blocked_count,
-        "error": error_count,
-        "cancelled": cancelled_count,
+        "skipped": skipped_count,
         "blocked_behavior": blocked_behavior,
-        "error_behavior": error_behavior,
-        "cancelled_behavior": cancelled_behavior,
-        "smoke_pass_rate": round(effective_passed / effective_total * 100, 1) if effective_total > 0 else 0,
-        "regression_pass_rate": round(effective_passed / effective_total * 100, 1) if effective_total > 0 else 0,
+        "smoke_pass_rate": round(passed_count / effective_total * 100, 1) if effective_total > 0 else 0,
+        "regression_pass_rate": round(passed_count / effective_total * 100, 1) if effective_total > 0 else 0,
         "compatibility_pass_rate": 100,
         "crash_count": crash_count,
         "crash_free_rate": 100 - crash_count * 0.1,
@@ -98,26 +72,16 @@ def evaluate(gate_type: str, results: list[dict], crash_count: int = 0) -> tuple
 
     failures = []
 
-    # Explicit check: total results = 0 -> fail
+    # Explicit check: total results = 0 → fail
     if total == 0:
-        failures.append("total_results: 0 results -- cannot verify quality")
+        failures.append("total_results: 0 results — cannot verify quality")
 
-    # Explicit check: any blocked/error/cancelled -> always flag
+    # Explicit check: any blocked → always flag (regardless of behavior)
     if blocked_count > 0:
         failures.append(f"blocked: {blocked_count} required tool(s) could not run")
-    if error_count > 0:
-        failures.append(f"error: {error_count} tool execution failure(s)")
-    if cancelled_count > 0:
-        failures.append(f"cancelled: {cancelled_count} execution(s) cancelled")
 
-    # block_gate: direct gate failure
-    if gate_blocked:
-        failures.append("gate: blocked by block_gate behavior (blocked|error|cancelled)")
-
-    # Check each gate rule (skip behavior config keys)
+    # Check each gate rule
     for metric, rule in rules.items():
-        if metric in ("blocked_behavior", "error_behavior", "cancelled_behavior"):
-            continue
         actual = metrics.get(metric)
         if actual is None:
             continue
@@ -129,6 +93,7 @@ def evaluate(gate_type: str, results: list[dict], crash_count: int = 0) -> tuple
     passed = len(failures) == 0
     return passed, failures, metrics
 
+
 def format_gate_result(gate_type: str, passed: bool, failures: list, metrics: dict) -> str:
     """格式化门禁结果为可读文本"""
     lines = [
@@ -137,7 +102,7 @@ def format_gate_result(gate_type: str, passed: bool, failures: list, metrics: di
         "",
         "Metrics:",
     ]
-    for k in ("total", "passed", "failed", "blocked", "error", "cancelled", "skipped"):
+    for k in ("total", "passed", "failed", "blocked", "skipped"):
         lines.append(f"  {k}: {metrics.get(k, 0)}")
 
     lines.append(f"  smoke_pass_rate: {metrics.get('smoke_pass_rate', 0)}%")
@@ -166,8 +131,6 @@ def gate_check(gate_type: str, project_name: str, results: list[dict] = None,
             results += [{"status": "passed"} for _ in range(summary.get("passed", 0))]
             results += [{"status": "failed"} for _ in range(summary.get("failed", 0))]
             results += [{"status": "blocked"} for _ in range(summary.get("blocked", 0))]
-            results += [{"status": "error"} for _ in range(summary.get("error", 0))]
-            results += [{"status": "cancelled"} for _ in range(summary.get("cancelled", 0))]
             results += [{"status": "skipped"} for _ in range(summary.get("skipped", 0))]
 
     passed, failures, metrics = evaluate(gate_type, results or [], crash_count)
@@ -182,8 +145,6 @@ def gate_check_with_summary(gate_type: str, project_name: str,
     results += [{"status": "passed"} for _ in range(summary.get("passed", 0))]
     results += [{"status": "failed"} for _ in range(summary.get("failed", 0))]
     results += [{"status": "blocked"} for _ in range(summary.get("blocked", 0))]
-    results += [{"status": "error"} for _ in range(summary.get("error", 0))]
-    results += [{"status": "cancelled"} for _ in range(summary.get("cancelled", 0))]
     results += [{"status": "skipped"} for _ in range(summary.get("skipped", 0))]
 
     passed, failures, metrics = evaluate(gate_type, results, crash_count)
