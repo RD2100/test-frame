@@ -1,0 +1,63 @@
+﻿schema_version: test-frame.tool-contract.v1
+
+tool: playwright
+display_name: Playwright
+enabled: true
+
+stages:
+  - smoke
+  - regression
+
+adapter:
+  type: cli_json
+
+timeout:
+  total_seconds: 1800
+
+env:
+  CI: "true"
+  BASE_URL: "${BASE_URL}"
+
+execution:
+  mode: sync
+  cwd: "."
+  command:
+    executable: npx
+    args:
+      - playwright
+      - test
+      - --reporter=json
+  stdout:
+    capture: true
+    save_as: artifacts/playwright/stdout.log
+  stderr:
+    capture: true
+    save_as: artifacts/playwright/stderr.log
+  exit_code:
+    treat_nonzero_as:
+      when_report_parseable: failed
+      when_report_missing: error
+
+normalization:
+  result_source: stdout
+  format: playwright_json
+  normalizer: playwright_json_v1
+  suite_name: web-e2e
+  suite_type: e2e
+
+artifacts:
+  - type: html_report
+    path: playwright-report/index.html
+    required: false
+  - type: trace
+    path: test-results/**/*.zip
+    required: false
+  - type: screenshot
+    path: test-results/**/*.png
+    required: false
+
+quality_signals:
+  - name: regression_pass_rate
+    type: rate
+    source: summary.pass_rate
+    unit: "%"
