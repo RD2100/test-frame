@@ -7,6 +7,7 @@ import re
 import sys
 import traceback
 import importlib
+from datetime import datetime
 from schema.canonical import VALID_STATUSES
 
 
@@ -119,6 +120,7 @@ class Stage:
         self.project_config = project_config
         self.index = index
         self.results = {}
+        self._run_id = f'run-{datetime.now().strftime("%Y%m%d-%H%M%S")}-{name}'
 
     def execute(self) -> bool:
         """执行stage，返回是否通过"""
@@ -191,6 +193,20 @@ class Stage:
                 result = module.run(self.project_config)
                 status = _derive_status(result)
                 self.results[f"{tool}_detail"] = result
+                # Normalize to CanonicalTestResult (parallel path)
+                try:
+                    from normalizers.wrapper import normalize_wrapper_dict
+                    _ctx = {
+                        "run_id": self._run_id,
+                        "stage": self.name,
+                        "tool_name": tool,
+                        "adapter_type": "wrapper",
+                        "suite_name": f"{self.name}-{tool}",
+                    }
+                    canonical = normalize_wrapper_dict(result, _ctx)
+                    self.results[f"{tool}_canonical"] = canonical
+                except Exception as _norm_err:
+                    self.results[f"{tool}_canonical_error"] = str(_norm_err)
 
                 # Retry on FAILED status when configured
                 if status == STATUS_FAILED and retry_on in ("failed", "both") and attempt < retry:
