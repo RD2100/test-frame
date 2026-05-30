@@ -107,6 +107,49 @@ def _stage_results_to_gate_format(stage_results: dict) -> list[dict]:
             })
     return flat
 
+def _canonical_results_to_gate_format(results: list[dict]) -> list[dict]:
+    """Convert CanonicalTestResult list to gate_check-compatible flat list.
+
+    Each result is a CanonicalTestResult. The output preserves all 6 status
+    fields for future gate use, while maintaining backward compatibility with
+    the current 4-status gate (evaluate ignores error/cancelled for now).
+
+    Args:
+        results: list of CanonicalTestResult dicts (from normalizers).
+
+    Returns:
+        Flat list: [{"status": "failed", "tool": "playwright", "stage": "regression", ...}, ...]
+    """
+    gate_items = []
+
+    for result in results:
+        summary = result.get("summary", {})
+        tool = result.get("tool", {})
+
+        gate_items.append({
+            "status": result["status"],
+            "tool": tool.get("name", "unknown"),
+            "stage": result.get("stage", "unknown"),
+
+            # Full 6-state counts for future gate config
+            "total": summary.get("total", 0),
+            "passed": summary.get("passed", 0),
+            "failed": summary.get("failed", 0),
+            "skipped": summary.get("skipped", 0),
+            "error": summary.get("error", 0),
+            "blocked": summary.get("blocked", 0),
+            "cancelled": summary.get("cancelled", 0),
+
+            "test_pass_rate": summary.get("test_pass_rate"),
+
+            # Quality signals and issues for richer gate evaluation
+            "signals": result.get("signals", []),
+            "issues": result.get("issues", []),
+        })
+
+    return gate_items
+
+
 
 def _status_ok(status: str) -> bool:
     """A stage is OK if all tools are passed or skipped (not failed or blocked)."""
