@@ -160,9 +160,9 @@ def normalize_result(
     if kind == "playwright_json":
         from normalizers.playwright import normalize_playwright_json
         return normalize_playwright_json(source.get("payload"), context)
-    # if kind == "junit_xml":
-    #     from normalizers.junit import normalize_junit_xml
-    #     return normalize_junit_xml(source.get("payload"), context)
+    if kind == "junit_xml":
+        from normalizers.junit import normalize_junit_xml
+        return normalize_junit_xml(source.get("payload"), context)
     # if kind == "sentry_issues":
     #     from normalizers.signals import normalize_sentry_issues
     #     return normalize_sentry_issues(source.get("payload"), context)
