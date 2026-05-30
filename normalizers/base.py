@@ -163,12 +163,12 @@ def normalize_result(
     if kind == "junit_xml":
         from normalizers.junit import normalize_junit_xml
         return normalize_junit_xml(source.get("payload"), context)
-    # if kind == "sentry_issues":
-    #     from normalizers.signals import normalize_sentry_issues
-    #     return normalize_sentry_issues(source.get("payload"), context)
-    # if kind == "bugly_crash_stats":
-    #     from normalizers.signals import normalize_bugly_crash_stats
-    #     return normalize_bugly_crash_stats(source.get("payload"), context)
+    if kind == "sentry_issues":
+        from normalizers.signals import normalize_sentry_issues
+        return normalize_sentry_issues(source.get("payload"), context)
+    if kind == "bugly_crash_stats":
+        from normalizers.signals import normalize_bugly_crash_stats
+        return normalize_bugly_crash_stats(source.get("payload"), context)
 
     return make_error_result(
         context=context,
