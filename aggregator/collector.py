@@ -129,21 +129,25 @@ def _write_summary(results: list[dict], path: str):
     total = len(results)
     passed = sum(1 for r in results if r.get("status") == "passed")
     failed = sum(1 for r in results if r.get("status") == "failed")
+    blocked = sum(1 for r in results if r.get("status") == "blocked")
+    skipped = sum(1 for r in results if r.get("status") == "skipped")
+
     by_tool = {}
     for r in results:
         tool = r.get("tool", "unknown")
+        status = r.get("status", "unknown")
         if tool not in by_tool:
-            by_tool[tool] = {"total": 0, "passed": 0, "failed": 0}
+            by_tool[tool] = {"total": 0, "passed": 0, "failed": 0, "blocked": 0, "skipped": 0}
         by_tool[tool]["total"] += 1
-        if r.get("status") == "passed":
-            by_tool[tool]["passed"] += 1
-        else:
-            by_tool[tool]["failed"] += 1
+        if status in by_tool[tool]:
+            by_tool[tool][status] += 1
 
     summary = {
         "total": total,
         "passed": passed,
         "failed": failed,
+        "blocked": blocked,
+        "skipped": skipped,
         "pass_rate": round(passed / total * 100, 1) if total > 0 else 0,
         "by_tool": by_tool,
         "generated_at": datetime.now().isoformat(),

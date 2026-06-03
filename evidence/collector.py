@@ -7,6 +7,40 @@ from datetime import datetime
 from pathlib import Path
 
 
+def _infer_test_name(path: str, tool: str) -> str:
+    """Infer a human-readable test name from a file path.
+    Returns empty string for unrecognizable paths."""
+    # Normalize path separators
+    normalized = path.replace("\\", "/")
+    parts = normalized.split("/")
+
+    # Strategy: find the most specific part that contains tool name
+    for part in parts:
+        if tool in part.lower() and "-" in part:
+            # Found a directory with tool name + detail
+            candidate = part
+            # Try to find an even more specific sibling
+            idx = parts.index(part) if part in parts else -1
+            if idx >= 0 and idx + 1 < len(parts):
+                next_part = parts[idx + 1]
+                if "." not in next_part or next_part.endswith((".png", ".mp4", ".zip")):
+                    pass  # it's a file, not a more specific directory
+            return candidate
+
+    # Fallback for playwright paths: extract parent dir name
+    for part in reversed(parts):
+        if "-" in part:
+            return part
+
+    # Fallback for maestro paths: look for flow name
+    for i, part in enumerate(parts):
+        if part == tool and i + 2 < len(parts):
+            return parts[i + 1]
+
+    # If no recognizable pattern, return empty string
+    return ""
+
+
 class EvidenceCollector:
     def __init__(self, project_name: str):
         self.project_name = project_name
@@ -102,6 +136,30 @@ class EvidenceCollector:
                 )
                 print("  [CRASH] Crash detected! (FATAL EXCEPTION)")
 
+    def _collect_business_smoke(self, index):
+        """Collect business smoke test evidence."""
+        smoke_dir = os.path.join("reports", "business-smoke")
+        results_path = os.path.join(smoke_dir, "exercise-results.json")
+        if not os.path.exists(results_path):
+            return
+
+        try:
+            with open(results_path, "r", encoding="utf-8") as f:
+                smoke_data = json.load(f)
+
+            has_failure = any(
+                f.get("status") == "FAIL" for f in smoke_data.get("flows", [])
+            )
+            index.add_evidence(
+                type="business_smoke_result",
+                tool="playwright",
+                path=results_path,
+                test_name="exercise-smoke",
+                severity="warning" if has_failure else "info",
+            )
+        except Exception:
+            pass
+
 
 class EvidenceIndex:
     def __init__(self, project: str, timestamp: str, build_id: str = None):
@@ -110,14 +168,22 @@ class EvidenceIndex:
         self.build_id = build_id or "unknown"
         self.evidences = []
 
-    def add_evidence(self, type: str, tool: str, path: str, metadata: dict = None):
+    def add_evidence(self, type: str, tool: str, path: str,
+                     test_name: str = "", severity: str = "info",
+                     metadata: dict = None):
         self.evidences.append({
             "type": type,
             "tool": tool,
+            "test_name": test_name,
             "path": path,
+            "severity": severity,
+            "timestamp": datetime.now().isoformat(),
             "metadata": metadata or {},
             "collected_at": datetime.now().isoformat(),
         })
+
+    def evidence_count(self) -> int:
+        return len(self.evidences)
 
     def to_dict(self) -> dict:
         return {
