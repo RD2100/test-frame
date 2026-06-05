@@ -1,64 +1,116 @@
-# TestFrame — 通用自动化Bug发现体系
+# TestFrame — 通用自动化测试编排框架
 
-基于成熟工具组合的自动化质量保障平台。**不重复造轮子，只做组合、适配、统一入口和报告归因。**
+**一句话**：把 Maestro、Playwright、Airtest、MiniProgram-Automator、MeterSphere、WeTest 等各自独立的测试工具，统一成一套可编排、可审计、不可静默通过的自动化测试流水线。
 
-## 覆盖范围
+---
 
-| 领域 | 工具 | 用途 |
-|------|------|------|
-| Android App 冒烟 | Maestro | YAML声明式，5分钟写测试流 |
-| Android App 回归 | Airtest + Poco | 图像+控件双模式 |
-| 微信小程序 | miniprogram-automator | 官方唯一方案 |
-| H5 / uni-app | Playwright | 三引擎跨浏览器 |
-| 后端 API | MeterSphere + Apifox | 测试管理+API设计+Mock |
-| 云真机兼容性 | WeTest | 国产设备最全 |
-| 崩溃监控 | Sentry + Bugly | 全栈+小程序崩溃 |
-| 报告聚合 | Allure | 多框架适配 |
-| CI/CD | GitHub Actions + Jenkins | 轻量+灵活 |
-| 缺陷归因 | 自研规则引擎 | 透明可解释 |
+## 解决什么问题
 
-## 快速开始
+团队做移动端/小程序/H5 测试时通常会引入多种工具——Android 冒烟用 Maestro，H5 用 Playwright，小程序用微信自动框架，API 用 MeterSphere。问题是：**每个工具的调用方式、返回值格式、失败语义都不一样**。跑完一圈后你拿到的是七份散落的结果，无法统一判断质量是否达标。
 
-```bash
-# 1. 环境安装
-bash ci/scripts/setup-env.sh
+TestFrame 做的事情：
+- **统一入口**：一条命令触发所有工具的测试
+- **统一状态语义**：`passed / failed / skipped / blocked`，所有工具结果归一化
+- **质量门禁**：自定义规则（如"冒烟通过率必须 100%，崩溃数必须为 0"），通过才放行
+- **不可静默通过**：工具崩了、没装、配置错了不会假装"过了"
+- **证据链可审计**：异常带完整调用栈，敏感信息自动脱敏，结果带数据来源标记
 
-# 2. 配置项目
-cp config/projects/app-android.yaml config/projects/my-app.yaml
-# 编辑 my-app.yaml 填入实际值
+---
 
-# 3. 运行冒烟测试
-python -m cli.main run --project=my-app --profile=smoke
+## 一条命令的执行流程
 
-# 4. 查看报告
-python -m cli.main report --project=my-app
 ```
+python -m cli.main run --project=fittrack --profile=smoke
+         │
+         ▼
+   Orchestrator.run()
+         │
+         ├─► Stage "smoke":      _run_tool("pytest_api") / _run_tool("maestro") / ...
+         ├─► Stage "regression": _run_tool("playwright") / _run_tool("airtest") / ...
+         ├─► Stage "evidence":   收集各工具日志、截图、崩溃堆栈
+         ├─► Stage "report":     生成 Allure HTML + Markdown 回归报告
+         ├─► Stage "attribution":失败用例自动匹配已知缺陷规则
+         └─► Stage "gate":       质量门禁判定 → passed / failed
+```
+
+---
+
+## 支持的工具矩阵
+
+| 工具 | 用途 | 接入方式 |
+|------|------|---------|
+| Maestro | Android 冒烟测试 | YAML 声明式，wrapper 封装 CLI |
+| Airtest | Android 图像+控件回归 | wrapper 封装 `airtest run` |
+| Playwright | H5 / Web 跨浏览器 | wrapper 封装 Playwright CLI |
+| MiniProgram-Automator | 微信小程序 E2E | wrapper 封装 Jest + 微信 IDE |
+| MeterSphere | API 接口测试 | wrapper 封装 HTTP API |
+| Pytest | Python API 单测/集成 | wrapper 封装 pytest |
+| WeTest | 云真机兼容性 | wrapper 封装 API（待真实环境验证） |
+
+---
+
+## 质量门禁
+
+定义在 `config/gates.yaml`，三个预设档位：
+
+| 档位 | 触发时机 | 规则示例 |
+|------|---------|---------|
+| PR | 代码提交 | smoke_pass_rate ≥ 100%, crash_count = 0 |
+| Main | 合并主干 | regression_pass_rate ≥ 95%, critical_bugs = 0 |
+| Release | 发版 | compatibility_pass_rate ≥ 90%, crash_free_rate ≥ 99.5% |
+
+**安全设计**：blocked（工具不可用）默认计入失败；配置错误有 warning 不静默跳过；门禁数据来源可审计（`_source` 标记）。
+
+---
 
 ## 项目结构
 
 ```
 TestFrame/
-├── config/          # 配置统一层
-├── cli/             # 命令统一层
-├── orchestrator/    # 任务编排层
-├── evidence/        # 日志证据收集层
-├── aggregator/      # 结果聚合层
-├── attribution/     # 缺陷归因层
-├── ci/              # CI/CD脚本
-├── tests/           # 测试用例仓库
-├── extensions/      # 三方工具配置
-└── examples/        # 集成示例
+├── cli/                CLI 入口 + 7 个工具 wrapper
+│   ├── main.py         命令注册（run / report / attribute）
+│   └── wrappers/	     各工具封装（maestro / playwright / airtest / miniapp / ...）
+├── orchestrator/       任务编排引擎
+│   ├── engine.py	     按 Stage 串联工具执行
+│   ├── stage.py	         Stage 执行器（含状态推导、异常安全、重试）
+│   └── gate.py	         质量门禁评估器
+├── aggregator/         结果聚合
+│   ├── collector.py	 收集多工具结果 → Allure + 摘要
+│   ├── report.py	     生成 HTML / Markdown 回归报告
+│   └── adapters/	     各工具的结果格式适配器
+├── evidence/           证据收集（日志/截图/Maestro 输出）
+├── attribution/        缺陷归因引擎（规则匹配 → 问题分类）
+├── config/             配置中心（项目 / profile / gate / 设备 / 账号）
+├── tests/              测试资产
+│   ├── test_gate_semantics.py	  门禁语义测试
+│   ├── test_stage_status.py	   Stage 状态 + 异常安全测试
+│   ├── fittrack/		          FitTrack 场景测试
+│   └── h5/			             Playwright H5 测试 + oracle
+├── hooks/               CI preflight（pre-commit / pre-push）
+└── governance/         治理白名单 + 漂移检测配置
 ```
 
-## 文档
+---
 
-- [TOOL_SELECTION.md](TOOL_SELECTION.md) — 工具选型报告
-- [ARCHITECTURE.md](ARCHITECTURE.md) — 集成架构设计
-- [INTEGRATION_PLAN.md](INTEGRATION_PLAN.md) — 工具接入计划
-- [PIPELINE.md](PIPELINE.md) — 测试流水线设计
-- [SETUP.md](SETUP.md) — 环境安装说明
-- [VERIFY.md](VERIFY.md) — 验收标准
+## 本地验证
+
+```bash
+# Python 单元 / 集成测试（165 条）
+python -m pytest tests/test_gate_semantics.py tests/test_stage_status.py \
+  tests/test_evidence_collector.py tests/test_playwright_adapter.py \
+  tests/test_regression_report.py tests/test_config_loader.py \
+  tests/test_orchestrator_engine.py tests/test_aggregator_collector.py \
+  tests/fittrack/test_models.py -q
+
+# JS 业务 Oracle 测试（26 条）
+node tests/h5/support/__tests__/oracles.test.js
+
+# Jest 测试发现验证
+npx jest --listTests --config=jest.config.js
+```
+
+---
 
 ## 核心理念
 
-> **不自研已有工具的能力，只做胶水层：配置统一、命令统一、任务编排、证据收集、结果聚合、缺陷归因、CI调用。**
+> **不自研已有工具的能力。TestFrame 是胶水层——把七种工具的输入输出统一起来，加上编排引擎和质量门禁，让流水线不再静默失败。**
