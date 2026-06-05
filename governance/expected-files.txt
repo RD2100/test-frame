@@ -1,0 +1,54 @@
+# Governance expected files — add your project's governance-critical file patterns.
+# Glob patterns resolved via Get-ChildItem -Recurse.
+rules/*.md
+AGENTS.md
+.ai/policy.yaml
+hooks/*.ps1
+hooks/*.json
+.github/workflows/*.yml
+scripts/**/*.ps1
+scripts/**/*.psm1
+governance/*.txt
+docs/**/*.md
+
+# TestFrame core execution chain
+orchestrator/*.py
+cli/main.py
+cli/wrappers/*.py
+aggregator/*.py
+aggregator/adapters/*.py
+evidence/*.py
+attribution/*.py
+config_loader.py
+
+# TestFrame quality gates & config
+config/gates.yaml
+config/defaults.yaml
+config/devices.yaml
+config/accounts.yaml
+config/profiles/*.yaml
+config/projects/*.yaml
+config/tools/*.yaml
+
+# TestFrame CI preflight
+register-hooks.ps1
+ci-preflight.ps1
+
+# TestFrame tests (P0 regression suite)
+tests/test_gate_semantics.py
+tests/test_stage_status.py
+tests/test_evidence_collector.py
+tests/test_playwright_adapter.py
+tests/test_regression_report.py
+tests/test_config_loader.py
+tests/test_orchestrator_engine.py
+tests/test_aggregator_collector.py
+tests/fittrack/**/*.py
+tests/h5/support/**/*.js
+tests/fixtures/**/*.json
+
+# Config entry points
+jest.config.js
+playwright.config.js
+pytest.ini
+package.json
