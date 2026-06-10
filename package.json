@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@weapp-vite/miniprogram-automator": "^1.2.2",
     "allure-commandline": "^2.41.0",
     "jest": "^29.7.0",
     "jest-json-reporter": "^1.2.2",

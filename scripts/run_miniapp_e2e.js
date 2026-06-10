@@ -6,7 +6,7 @@ const PORT = 19541;
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function main() {
-  const mp = await automator.connect({ wsEndpoint: 'ws://127.0.0.1:' + PORT });
+  const mp = await automator.connect({ wsEndpoint: 'ws://localhost:' + PORT });
   const results = [];
   const pass = (name) => results.push({ name, status: 'passed' });
   const fail = (name, error) => results.push({ name, status: 'failed', error: String(error).substring(0, 200) });
@@ -163,8 +163,10 @@ async function main() {
 
   await mp.close();
   console.log('MINIAPP_RESULTS:' + JSON.stringify(results));
+  process.exitCode = results.some(r => r.status === 'failed') ? 1 : 0;
 }
 
 main().catch(e => {
   console.log('MINIAPP_RESULTS:' + JSON.stringify([{ name: 'fatal', status: 'failed', error: e.message }]));
+  process.exitCode = 1;
 });

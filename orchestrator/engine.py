@@ -4,7 +4,15 @@ import time
 import sys
 from pathlib import Path
 
-from orchestrator.stage import Stage, STATUS_PASSED, STATUS_SKIPPED, STATUS_BLOCKED, STATUS_FAILED, _status_ok
+from orchestrator.stage import (
+    Stage,
+    STATUS_PASSED,
+    STATUS_SKIPPED,
+    STATUS_BLOCKED,
+    STATUS_FAILED,
+    _status_ok,
+)
+from schema.stage_results import is_internal_stage_result_key
 import config_loader
 
 
@@ -66,11 +74,14 @@ class Orchestrator:
                 "tools": {},
             }
             for key, val in stage.results.items():
-                if not key.endswith("_detail"):
-                    stage_result["tools"][key] = val
-                    detail = stage.results.get(f"{key}_detail", {})
-                    if isinstance(detail, dict) and "status" in detail:
-                        stage_result["tools"][f"{key}_status"] = detail["status"]
+                if is_internal_stage_result_key(key):
+                    continue
+                if not isinstance(val, str):
+                    continue
+                stage_result["tools"][key] = val
+                detail = stage.results.get(f"{key}_detail", {})
+                if isinstance(detail, dict) and "status" in detail:
+                    stage_result["tools"][f"{key}_status"] = detail["status"]
 
             self.results[stage_name] = stage_result
 

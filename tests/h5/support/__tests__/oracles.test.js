@@ -364,3 +364,10 @@ if (errors.length > 0) {
 }
 
 process.exitCode = failed > 0 ? 1 : 0;
+
+if (typeof global.test === 'function') {
+  global.test('oracle self-test runner completed', () => {
+    assert.strictEqual(failed, 0, `${failed} oracle checks failed`);
+    assert.ok(passed > 0, 'Expected at least one oracle check to run');
+  });
+}

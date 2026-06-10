@@ -18,6 +18,12 @@ stages:
     retry: 1
     on_failure: continue
 
+  - stage: miniapp_e2e
+    tools: [miniprogram-automator]
+    timeout: 360
+    retry: 0
+    on_failure: abort
+
   - stage: evidence
     tools: []
     timeout: 30
@@ -41,6 +47,69 @@ stages:
 pytest_api:
   test_dir: "tests/fittrack/"
   json_report: "reports/pytest_results.json"
+
+miniapp:
+  devtool_path: "D:\\微信web开发者工具\\cli.bat"
+  devtool_port: 9420
+  force_clean_start: true
+  operation_timeout_ms: 15000
+  runtime_probe_artifact: true
+  runtime_probe_attempts: 3
+  runtime_probe_retry_interval: 3
+  runtime_probe_timeout: 90
+  results_artifact: true
+  reopen_between_scripts: true
+  project_path: "D:\\fitness-manager"
+  test_script: "tests/fittrack/miniapp/e2e_full.js"
+  test_scripts:
+    - name: login-index
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "login-index"]
+    - name: training
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "training"]
+    - name: exercise
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "exercise"]
+    - name: profile-main
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "profile-main"]
+    - name: profile-edit
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "profile-edit"]
+    - name: profile-body-metrics
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "profile-body-metrics"]
+    - name: profile-personal-records
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "profile-personal-records"]
+    - name: workout-detail
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "workout-detail"]
+    - name: plan-edit
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "plan-edit"]
+    - name: stats
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "stats"]
+    - name: seed-data
+      script: "tests/fittrack/miniapp/e2e_group.js"
+      args: ["--group", "seed-data"]
+  test_dir: "tests/miniapp/specs/"
+  required_routes:
+    - pages/login/login
+    - pages/index/index
+    - pages/training/training
+    - pages/exercise/exercise
+    - pages/profile/profile
+    - pages/workout-detail/workout-detail
+    - pages/plan-edit/plan-edit
+    - pages/stats/stats
+    - pages/exercise/exercise-detail/exercise-detail
+    - pages/profile/profile-edit/profile-edit
+    - pages/profile/body-metrics/body-metrics
+    - pages/profile/personal-records/personal-records
+    - pages/admin/seed-data/seed-data
 
 report:
   format: "allure"

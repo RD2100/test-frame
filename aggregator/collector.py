@@ -10,6 +10,8 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from schema.stage_results import iter_public_tool_results
+
 # All adapter modules with collect(project_config) -> list[dict]
 _ADAPTERS = [
     "aggregator.adapters.maestro_adapter",
@@ -22,6 +24,29 @@ _ADAPTERS = [
     "aggregator.adapters.sentry_adapter",
     "aggregator.adapters.bugly_adapter",
 ]
+
+
+_ALLURE_STATUS_BY_CANONICAL = {
+    "passed": "passed",
+    "failed": "failed",
+    "skipped": "skipped",
+    "blocked": "broken",
+    "error": "broken",
+    "cancelled": "broken",
+}
+
+
+def _stage_results_to_report_results(stage_results: dict) -> list[dict]:
+    """Convert orchestrator stage results into report-compatible items."""
+    return [
+        {
+            "test_name": f"{item['stage']}.{item['tool']}",
+            "status": item["status"],
+            "tool": item["tool"],
+            "stage": item["stage"],
+        }
+        for item in iter_public_tool_results(stage_results)
+    ]
 
 
 def collect_all_results(project_config: dict = None) -> list[dict]:
@@ -41,7 +66,9 @@ def collect_all_results(project_config: dict = None) -> list[dict]:
 
 
 def collect_and_generate(project_name: str, date: str = None, output_dir: str = None,
-                         project_config: dict = None) -> str:
+                         project_config: dict = None, stage_results: dict = None,
+                         profile: str = None, quality_gate: dict = None,
+                         base_url: str = "", command: str = "") -> str:
     """收集所有工具结果并生成Allure报告"""
     base_dir = output_dir or os.path.join("reports", project_name)
     if date is None:
@@ -54,7 +81,10 @@ def collect_and_generate(project_name: str, date: str = None, output_dir: str = 
     os.makedirs(allure_results_dir, exist_ok=True)
 
     # 收集所有工具结果
-    results = collect_all_results(project_config)
+    if stage_results is not None:
+        results = _stage_results_to_report_results(stage_results)
+    else:
+        results = collect_all_results(project_config)
 
     # 写入Allure格式
     for result in results:
@@ -75,6 +105,33 @@ def collect_and_generate(project_name: str, date: str = None, output_dir: str = 
     # 保存统计摘要
     _write_summary(results, os.path.join(base_dir, "summary.json"))
 
+    has_report_context = (
+        stage_results is not None
+        or profile is not None
+        or quality_gate is not None
+        or bool(base_url)
+        or bool(command)
+    )
+    if has_report_context:
+        from aggregator.report import generate_regression_report
+
+        report_profile = profile
+        if report_profile is None and project_config:
+            report_profile = project_config.get("_profile")
+
+        generate_regression_report(
+            project_name=project_name,
+            profile=report_profile or "unknown",
+            results=results,
+            stage_results=stage_results or {},
+            quality_gate=quality_gate,
+            base_url=base_url,
+            command=command,
+            date=os.path.basename(base_dir),
+            output_dir=base_dir,
+            project_config=project_config,
+        )
+
     return allure_report_dir
 
 
@@ -86,13 +143,15 @@ def collect_failed_results(project_config: dict = None) -> list[dict]:
 
 def _write_allure_result(result: dict, output_dir: str):
     """将统一格式的测试结果写入Allure JSON"""
+    canonical_status = result["status"]
     allure_result = {
         "name": result["test_name"],
-        "status": result["status"],
+        "status": _ALLURE_STATUS_BY_CANONICAL.get(canonical_status, "broken"),
         "stage": "finished",
         "labels": [
             {"name": "tool", "value": result["tool"]},
             {"name": "language", "value": "python"},
+            {"name": "canonical_status", "value": canonical_status},
         ],
         "description": "",
     }
@@ -131,13 +190,23 @@ def _write_summary(results: list[dict], path: str):
     failed = sum(1 for r in results if r.get("status") == "failed")
     blocked = sum(1 for r in results if r.get("status") == "blocked")
     skipped = sum(1 for r in results if r.get("status") == "skipped")
+    error = sum(1 for r in results if r.get("status") == "error")
+    cancelled = sum(1 for r in results if r.get("status") == "cancelled")
 
     by_tool = {}
     for r in results:
         tool = r.get("tool", "unknown")
         status = r.get("status", "unknown")
         if tool not in by_tool:
-            by_tool[tool] = {"total": 0, "passed": 0, "failed": 0, "blocked": 0, "skipped": 0}
+            by_tool[tool] = {
+                "total": 0,
+                "passed": 0,
+                "failed": 0,
+                "blocked": 0,
+                "skipped": 0,
+                "error": 0,
+                "cancelled": 0,
+            }
         by_tool[tool]["total"] += 1
         if status in by_tool[tool]:
             by_tool[tool][status] += 1
@@ -148,6 +217,8 @@ def _write_summary(results: list[dict], path: str):
         "failed": failed,
         "blocked": blocked,
         "skipped": skipped,
+        "error": error,
+        "cancelled": cancelled,
         "pass_rate": round(passed / total * 100, 1) if total > 0 else 0,
         "by_tool": by_tool,
         "generated_at": datetime.now().isoformat(),

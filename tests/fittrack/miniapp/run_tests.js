@@ -38,7 +38,7 @@ async function main() {
 
   // Step 2: Connect
   console.log('Connecting...');
-  const mp = await automator.connect({ wsEndpoint: `ws://127.0.0.1:${AUTO_PORT}` });
+  const mp = await automator.connect({ wsEndpoint: `ws://localhost:${AUTO_PORT}` });
   console.log('Connected!\n');
 
   let passed = 0, total = 0;

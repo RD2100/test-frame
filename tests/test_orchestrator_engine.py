@@ -86,6 +86,42 @@ class TestOrchestratorStageResultInjection:
         assert "pytest_api" in smoke_result["tools"]
         assert smoke_result["tools"]["pytest_api"] == STATUS_PASSED
 
+    def test_stage_result_excludes_canonical_sidecars(self):
+        """Canonical sidecar data must not be treated as a gate tool result."""
+        profile = {"stages": ["smoke"]}
+        config = self._make_minimal_config()
+
+        orch = Orchestrator.__new__(Orchestrator)
+        orch.config = config
+        orch.profile = profile
+        orch.results = {}
+        orch.project_name = "test_proj"
+        orch.profile_name = "smoke"
+        orch._find_stage_config = lambda sn: (
+            [s for s in config["stages"] if s.get("stage") == sn] or [None]
+        )[0]
+
+        def fake_execute(self):
+            self.results = {
+                "pytest_api": STATUS_PASSED,
+                "pytest_api_detail": {"status": STATUS_PASSED, "tool": "pytest_api"},
+                "pytest_api_canonical": {
+                    "schema_version": "test-frame.canonical.v1",
+                    "status": STATUS_PASSED,
+                },
+                "pytest_api_canonical_error": "normalizer failed",
+            }
+            return True
+
+        with mock.patch.object(Stage, 'execute', fake_execute):
+            orch.run()
+
+        tools = orch.config["_stage_results"]["smoke"]["tools"]
+        assert tools["pytest_api"] == STATUS_PASSED
+        assert tools["pytest_api_status"] == STATUS_PASSED
+        assert "pytest_api_canonical" not in tools
+        assert "pytest_api_canonical_error" not in tools
+
     def test_stage_result_with_mixed_statuses(self):
         """Stage with passed + failed tools must produce correct results."""
         profile = {"stages": ["smoke"]}

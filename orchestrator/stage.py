@@ -9,6 +9,10 @@ import traceback
 import importlib
 from datetime import datetime
 from schema.canonical import VALID_STATUSES
+from schema.stage_results import (
+    is_internal_stage_result_key as _is_internal_stage_result_key,
+    iter_public_tool_results,
+)
 
 
 # Status constants: passed | failed | skipped | blocked
@@ -81,8 +85,6 @@ def _derive_status(result: dict) -> str:
 
     return STATUS_FAILED
 
-
-
 def _stage_results_to_gate_format(stage_results: dict) -> list[dict]:
     """Convert orchestrator _stage_results to gate_check-compatible list[dict].
 
@@ -92,20 +94,14 @@ def _stage_results_to_gate_format(stage_results: dict) -> list[dict]:
     Returns flat list:
         [{"status": "passed", "tool": "tool_a", "stage": "stage_name"}, ...]
     """
-    flat = []
-    for stage_name, stage_data in stage_results.items():
-        if not isinstance(stage_data, dict):
-            continue
-        tools = stage_data.get("tools", {})
-        for key, val in tools.items():
-            if key.endswith("_status") or key.endswith("_detail"):
-                continue
-            flat.append({
-                "status": val,
-                "tool": key,
-                "stage": stage_name,
-            })
-    return flat
+    return [
+        {
+            "status": item["status"],
+            "tool": item["tool"],
+            "stage": item["stage"],
+        }
+        for item in iter_public_tool_results(stage_results)
+    ]
 
 def _canonical_results_to_gate_format(results: list[dict]) -> list[dict]:
     """Convert CanonicalTestResult list to gate_check-compatible flat list.

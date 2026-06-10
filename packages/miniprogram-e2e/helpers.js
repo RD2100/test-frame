@@ -20,7 +20,7 @@ async function connect(port = 9420, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       const miniProgram = await automator.connect({
-        wsEndpoint: `ws://127.0.0.1:${port}`,
+        wsEndpoint: `ws://localhost:${port}`,
       });
       return miniProgram;
     } catch (e) {

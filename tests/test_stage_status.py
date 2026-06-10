@@ -227,6 +227,46 @@ class TestStageRunToolProductionPath:
         assert detail["status"] == STATUS_FAILED
 
 
+class TestReportStageProductionPath:
+    """Exercise Stage._run_report() through the real collector entry point."""
+
+    def test_run_report_accepts_orchestrator_context(self, tmp_path, monkeypatch):
+        from orchestrator.stage import Stage
+
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            "aggregator.collector.collect_all_results",
+            lambda project_config: [
+                {"status": "passed", "tool": "pytest_api", "test_name": "test_login"}
+            ],
+        )
+        monkeypatch.setattr(
+            "aggregator.collector.subprocess.run",
+            lambda *args, **kwargs: None,
+        )
+
+        stage = Stage(
+            name="report",
+            config={},
+            project_config={
+                "project": {"name": "test_proj"},
+                "_profile": "smoke",
+                "_stage_results": {
+                    "smoke": {"ok": True, "tools": {"pytest_api": STATUS_PASSED}}
+                },
+                "playwright": {"base_url": "http://localhost:5190"},
+            },
+            index=1,
+        )
+
+        assert stage._run_report() is True
+        assert "report_detail" not in stage.results
+        summary_files = list(
+            (tmp_path / "reports" / "test_proj").glob("*/regression-summary.json")
+        )
+        assert len(summary_files) == 1
+
+
 class TestSanitizeHelper:
     """Verify _sanitize_error exists and is importable."""
 

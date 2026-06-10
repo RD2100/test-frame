@@ -1,0 +1,17 @@
+# MiniApp E2E profile (explicit opt-in).
+profile: miniapp_e2e
+description: "Run FitTrack MiniApp route preflight and real miniprogram-automator E2E"
+
+stages:
+  - miniapp_e2e
+  - evidence
+  - report
+  - attribution
+  - gate
+
+gate_profile: pr
+
+parallel:
+  enabled: false
+  cross_tool: false
+  max_workers: 1

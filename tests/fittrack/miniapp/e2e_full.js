@@ -6,7 +6,23 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.argv.find(a => a.startsWith('--port'))?.split('=')[1] || process.argv[process.argv.indexOf('--port') + 1], 10) || 19541;
+const ENABLE_SCREENSHOTS = process.env.MINIAPP_SCREENSHOTS === '1' || process.argv.includes('--screenshots');
 const SCREENSHOT_DIR = path.resolve(__dirname, '../../../reports/fittrack');
+const EXPECTED_ROUTES = new Set([
+  'pages/login/login',
+  'pages/index/index',
+  'pages/training/training',
+  'pages/exercise/exercise',
+  'pages/profile/profile',
+  'pages/workout-detail/workout-detail',
+  'pages/plan-edit/plan-edit',
+  'pages/stats/stats',
+  'pages/exercise/exercise-detail/exercise-detail',
+  'pages/profile/profile-edit/profile-edit',
+  'pages/profile/body-metrics/body-metrics',
+  'pages/profile/personal-records/personal-records',
+  'pages/admin/seed-data/seed-data',
+]);
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -19,6 +35,9 @@ function ensureScreenshotDir() {
 
 // 截图辅助：每个页面独立截图
 async function takeScreenshot(mp, name) {
+  if (!ENABLE_SCREENSHOTS) {
+    return null;
+  }
   try {
     const filePath = path.join(SCREENSHOT_DIR, `e2e_${name}.png`);
     await mp.screenshot({ path: filePath });
@@ -47,20 +66,47 @@ async function safeCountElements(page, selector) {
   }
 }
 
+function isConnectionError(error) {
+  const message = String(error || '');
+  return message.includes('Connection closed') || message.includes('Failed connecting to ws://');
+}
+
+function emitResults(results) {
+  const passed = results.filter(r => r.status === 'passed').length;
+  const failed = results.filter(r => r.status === 'failed').length;
+  const skipped = results.filter(r => r.status === 'skipped').length;
+  const total = results.length;
+
+  results.push({
+    name: 'summary',
+    status: 'info',
+    total,
+    passed,
+    failed,
+    skipped,
+    passRate: total > 0 ? Math.round(passed / total * 100) + '%' : '0%'
+  });
+
+  console.log('MINIAPP_RESULTS:' + JSON.stringify(results));
+  process.exitCode = failed > 0 ? 1 : 0;
+}
+
 async function main() {
   ensureScreenshotDir();
 
-  const mp = await automator.connect({ wsEndpoint: 'ws://127.0.0.1:' + PORT });
+  const mp = await automator.connect({ wsEndpoint: 'ws://localhost:' + PORT });
   const results = [];
   const pass = (name) => results.push({ name, status: 'passed' });
   const fail = (name, error) => results.push({ name, status: 'failed', error: String(error).substring(0, 200) });
   const skip = (name, reason) => results.push({ name, status: 'skipped', error: reason });
+  let currentPath = null;
 
   // ═══════════════════════════════════════════
   // 0. 基础环境检查
   // ═══════════════════════════════════════════
   try {
     let p = await mp.currentPage();
+    currentPath = p.path;
     pass('env:page=' + p.path);
 
     let s = await mp.systemInfo();
@@ -69,6 +115,20 @@ async function main() {
     let stack = await mp.pageStack();
     pass('env:stack_depth=' + stack.length);
   } catch (e) { fail('env', e.message); }
+
+  if (results.some(r => r.name === 'env' && r.status === 'failed' && isConnectionError(r.error))) {
+    skip('env:abort', 'automation connection closed before page tests');
+    try { mp.disconnect(); } catch (_) {}
+    emitResults(results);
+    return;
+  }
+
+  if (currentPath && !EXPECTED_ROUTES.has(currentPath)) {
+    fail('env:project_mismatch', `unexpected initial page: ${currentPath}`);
+    try { mp.disconnect(); } catch (_) {}
+    emitResults(results);
+    return;
+  }
 
   // ═══════════════════════════════════════════
   // 1. Login 页 — pages/login/login
@@ -1115,25 +1175,17 @@ async function main() {
   // ═══════════════════════════════════════════
   // 结果统计
   // ═══════════════════════════════════════════
-  const passed = results.filter(r => r.status === 'passed').length;
-  const failed = results.filter(r => r.status === 'failed').length;
-  const skipped = results.filter(r => r.status === 'skipped').length;
-  const total = results.length;
+  try {
+    await mp.close();
+  } catch (e) {
+    skip('env:close', e.message);
+    try { mp.disconnect(); } catch (_) {}
+  }
 
-  results.push({
-    name: 'summary',
-    status: 'info',
-    total,
-    passed,
-    failed,
-    skipped,
-    passRate: total > 0 ? Math.round(passed / total * 100) + '%' : '0%'
-  });
-
-  await mp.close();
-  console.log('MINIAPP_RESULTS:' + JSON.stringify(results));
+  emitResults(results);
 }
 
 main().catch(e => {
   console.log('MINIAPP_RESULTS:' + JSON.stringify([{ name: 'fatal', status: 'failed', error: e.message }]));
+  process.exitCode = 1;
 });

@@ -544,6 +544,69 @@ class TestRegressionMarkdownReport:
         assert "smoke" in md
         assert "h5_ui" in md
 
+    def test_markdown_stage_results_ignore_internal_sidecars(self):
+        ctx = {
+            "project_name": "test", "profile": "regression", "date": "2026-01-01",
+            "overall_status": "passed",
+            "totals": {"passed": 1, "failed": 0, "skipped": 0, "blocked": 0},
+            "by_tool": {},
+            "top_failures": [],
+            "quality_gate": {},
+            "stage_results": {
+                "smoke": {
+                    "ok": True,
+                    "tools": {
+                        "pytest_api": "passed",
+                        "pytest_api_status": "passed",
+                        "pytest_api_detail": {"status": "passed"},
+                        "pytest_api_canonical": {"status": "passed"},
+                        "pytest_api_canonical_error": "normalizer failed",
+                    },
+                },
+            },
+            "base_dir": "reports/test/2026-01-01",
+        }
+        md = _render_markdown(**ctx)
+
+        assert "| smoke | OK | pytest_api | 1 | 0 | 0 | 0 |" in md
+        assert "pytest_api_detail" not in md
+        assert "pytest_api_canonical" not in md
+        assert "pytest_api_canonical_error" not in md
+
+    def test_generated_report_ignores_blocked_sidecar_in_blockers_and_environment_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage_results = {
+                "smoke": {
+                    "ok": True,
+                    "tools": {
+                        "pytest_api": "passed",
+                        "pytest_api_detail": {"status": "passed"},
+                        "pytest_api_canonical": {"status": "passed"},
+                        "pytest_api_canonical_error": "blocked",
+                    },
+                }
+            }
+            r = generate_regression_report(
+                project_name="p",
+                profile="smoke",
+                results=[
+                    {"status": "passed", "tool": "pytest_api", "test_name": "smoke.pytest_api"}
+                ],
+                stage_results=stage_results,
+                output_dir=tmp,
+                date="2026-01-18",
+                project_config={"playwright": {"explorer": {"authMode": "real", "enabled": True}}},
+            )
+
+            with open(r["summary"], encoding="utf-8") as f:
+                data = json.load(f)
+            with open(r["markdown"], encoding="utf-8") as f:
+                md = f.read()
+
+            assert data["environmentBlocks"] == []
+            assert not any(b.get("type") == "tool_blocked" for b in data["blockers"])
+            assert "pytest_api_canonical_error" not in md
+
     def test_markdown_has_explorer_section_when_data_available(self):
         ctx = {
             "project_name": "test", "profile": "regression", "date": "2026-01-01",

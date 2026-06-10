@@ -172,6 +172,28 @@ class TestStageResultsToGateFormat:
         assert "playwright_status" not in tool_names
         assert len(result) == 3
 
+    def test_internal_canonical_sidecars_are_ignored(self):
+        convert = self._get_converter()
+        stage_results = {
+            "smoke": {
+                "ok": True,
+                "tools": {
+                    "pytest_api": "passed",
+                    "pytest_api_status": "passed",
+                    "pytest_api_detail": {"status": "passed"},
+                    "pytest_api_canonical": {
+                        "schema_version": "test-frame.canonical.v1",
+                        "status": "passed",
+                    },
+                    "pytest_api_canonical_error": "normalizer failed",
+                },
+            }
+        }
+
+        result = convert(stage_results)
+
+        assert result == [{"status": "passed", "tool": "pytest_api", "stage": "smoke"}]
+
     def test_stage_with_failed_tool_produces_failed_status(self):
         convert = self._get_converter()
         stage_results = {

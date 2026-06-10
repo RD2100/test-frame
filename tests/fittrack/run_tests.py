@@ -12,11 +12,26 @@ import time
 import threading
 import subprocess
 import json
+import re
 from pathlib import Path
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 os.chdir(PROJECT_ROOT)
+
+
+def _parse_pytest_counts(stdout):
+    passed = 0
+    failed = 0
+    for line in stdout.splitlines():
+        if " passed" not in line and " failed" not in line:
+            continue
+        for count, label in re.findall(r"(\d+)\s+(passed|failed)", line):
+            if label == "passed":
+                passed = int(count)
+            elif label == "failed":
+                failed = int(count)
+    return passed, failed
 
 
 def main(open_report=False):
@@ -46,6 +61,9 @@ def main(open_report=False):
         os.makedirs(results_dir, exist_ok=True)
         for f in Path(results_dir).glob("*.json"):
             f.unlink()
+        stale_json_report = Path("reports/pytest_results.json")
+        if stale_json_report.exists():
+            stale_json_report.unlink()
 
         api_cmd = [
             sys.executable, "-m", "pytest", "tests/fittrack/test_api.py",
@@ -60,19 +78,7 @@ def main(open_report=False):
         api_passed = r.returncode == 0
         if not api_passed:
             all_passed = False
-        # Parse counts
-        for line in r.stdout.splitlines():
-            if "passed" in line and "failed" in line and "=" in line:
-                try:
-                    parts = line.strip().split(",")
-                    for p in parts:
-                        p = p.strip()
-                        if "passed" in p:
-                            passed = int(p.split()[0])
-                        elif "failed" in p:
-                            failed = int(p.split()[0])
-                except Exception:
-                    pass
+        passed, failed = _parse_pytest_counts(r.stdout)
         total = passed + failed
 
         print(f"\n  API: {passed}/{total} passed")
@@ -91,17 +97,7 @@ def main(open_report=False):
         model_ok = r2.returncode == 0
         if not model_ok:
             all_passed = False
-        for line in r2.stdout.splitlines():
-            if "passed" in line and "failed" in line and "=" in line:
-                try:
-                    for p in line.strip().split(","):
-                        p = p.strip()
-                        if "passed" in p:
-                            model_passed = int(p.split()[0])
-                        elif "failed" in p:
-                            model_failed = int(p.split()[0])
-                except Exception:
-                    pass
+        model_passed, model_failed = _parse_pytest_counts(r2.stdout)
         model_total = model_passed + model_failed
 
         print(f"\n  Models: {model_passed}/{model_total} passed")
@@ -130,6 +126,8 @@ def main(open_report=False):
         from orchestrator.gate import gate_check
         gate_passed, gate_report = gate_check("pr", "fittrack", results)
         print(gate_report)
+        if not gate_passed:
+            all_passed = False
 
         # ── Stage 6: Allure 报告 ──
         print(f"\n[Stage 6] Generating Allure report...")
@@ -177,6 +175,8 @@ def main(open_report=False):
     finally:
         print(f"\n[Cleanup] Stopping server...")
         server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=2)
         print(f"  [OK] Done")
 
     return all_passed

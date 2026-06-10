@@ -10,6 +10,8 @@ import os
 import json
 from datetime import datetime
 
+from schema.stage_results import iter_public_tool_results
+
 
 def generate_regression_report(
     project_name: str,
@@ -252,15 +254,15 @@ def _render_markdown(**ctx) -> str:
         lines.append("|-------|--------|-------|--------|--------|---------|---------|")
         for stage_name, sr in stage_results.items():
             ok = sr.get("ok", True)
-            tools = sr.get("tools", {})
-            tool_names = [k for k in tools if not k.endswith("_status")]
+            stage_items = list(iter_public_tool_results({stage_name: sr}))
+            tool_names = [item["tool"] for item in stage_items]
             status_str = "OK" if ok else "FAIL"
 
             # Count tool statuses
-            p = sum(1 for k, v in tools.items() if not k.endswith("_status") and v == "passed")
-            f = sum(1 for k, v in tools.items() if not k.endswith("_status") and v == "failed")
-            s = sum(1 for k, v in tools.items() if not k.endswith("_status") and v == "skipped")
-            b = sum(1 for k, v in tools.items() if not k.endswith("_status") and v == "blocked")
+            p = sum(1 for item in stage_items if item["status"] == "passed")
+            f = sum(1 for item in stage_items if item["status"] == "failed")
+            s = sum(1 for item in stage_items if item["status"] == "skipped")
+            b = sum(1 for item in stage_items if item["status"] == "blocked")
 
             lines.append(f"| {stage_name} | {status_str} | {', '.join(tool_names)} | {p} | {f} | {s} | {b} |")
         lines.append("")
@@ -503,22 +505,18 @@ def _compute_blockers(stage_results: dict, environment_blocks: list,
         })
 
     # From stage_results: collect tools with blocked status
-    for stage_name, sr in stage_results.items():
-        tools = sr.get("tools", {})
-        for key, val in tools.items():
-            if key.endswith("_status"):
-                continue
-            if val == "blocked":
-                detail_key = f"{key}_detail"
-                detail = tools.get(detail_key, {})
-                reason = ""
-                if isinstance(detail, dict):
-                    reason = detail.get("reason", detail.get("error", ""))
-                blockers.append({
-                    "type": "tool_blocked",
-                    "reason": reason or f"Tool '{key}' blocked in stage '{stage_name}'",
-                    "recommendation": f"Check {key} availability and re-run stage '{stage_name}'",
-                })
+    for item in iter_public_tool_results(stage_results):
+        if item["status"] != "blocked":
+            continue
+        detail = item.get("detail", {})
+        reason = ""
+        if isinstance(detail, dict):
+            reason = detail.get("reason", detail.get("error", ""))
+        blockers.append({
+            "type": "tool_blocked",
+            "reason": reason or f"Tool '{item['tool']}' blocked in stage '{item['stage']}'",
+            "recommendation": f"Check {item['tool']} availability and re-run stage '{item['stage']}'",
+        })
 
     # From environment_blocks: generate auth_guard type for missing backends
     for eb in environment_blocks:
@@ -657,25 +655,22 @@ def _detect_environment_blocks(stage_results: dict, project_name: str) -> list[d
         "metersphere": {"fix": "Configure MeterSphere API endpoint"},
     }
 
-    for stage_name, sr in stage_results.items():
-        tools = sr.get("tools", {})
-        for key, val in tools.items():
-            if key.endswith("_status"):
-                continue
-            if val in ("blocked", "skipped"):
-                detail_key = f"{key}_detail"
-                reason = ""
-                detail = tools.get(detail_key, {})
-                if isinstance(detail, dict):
-                    reason = detail.get("reason", detail.get("error", ""))
-                deps = tool_deps.get(key, {"fix": "Check tool installation and configuration"})
-                blocks.append({
-                    "tool": key,
-                    "stage": stage_name,
-                    "required": val == "blocked",
-                    "status": val,
-                    "reason": reason,
-                    "fix": deps.get("fix", ""),
-                })
+    for item in iter_public_tool_results(stage_results):
+        status = item["status"]
+        if status not in ("blocked", "skipped"):
+            continue
+        detail = item.get("detail", {})
+        reason = ""
+        if isinstance(detail, dict):
+            reason = detail.get("reason", detail.get("error", ""))
+        deps = tool_deps.get(item["tool"], {"fix": "Check tool installation and configuration"})
+        blocks.append({
+            "tool": item["tool"],
+            "stage": item["stage"],
+            "required": status == "blocked",
+            "status": status,
+            "reason": reason,
+            "fix": deps.get("fix", ""),
+        })
 
     return blocks

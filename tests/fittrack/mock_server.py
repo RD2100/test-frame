@@ -10,7 +10,8 @@ import time
 import random
 import hashlib
 import base64
-from http.server import HTTPServer, BaseHTTPRequestHandler
+import copy
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 PORT = 8765  # Same port as demo mock server
@@ -63,20 +64,43 @@ SAMPLE_PLANS = [
 
 # ── 运行时状态 ──
 
+def _initial_admins():
+    return {
+        "admin_001": {
+            "_id": "admin_001", "username": "admin",
+            "password": hashlib.sha256("admin123".encode()).hexdigest(),
+            "role": "super_admin", "createdAt": time.time() - 86400 * 90
+        }
+    }
+
+
 USERS = {}
 WORKOUTS = []
-ADMINS = {
-    "admin_001": {
-        "_id": "admin_001", "username": "admin",
-        "password": hashlib.sha256("admin123".encode()).hexdigest(),
-        "role": "super_admin", "createdAt": time.time() - 86400 * 90
-    }
-}
+ADMINS = _initial_admins()
 ADMIN_TOKENS = {}  # token -> admin_id
-EXERCISES_DB = list(SAMPLE_EXERCISES)  # 可增删改的副本
-PLANS_DB = list(SAMPLE_PLANS)
+EXERCISES_DB = copy.deepcopy(SAMPLE_EXERCISES)  # 可增删改的副本
+PLANS_DB = copy.deepcopy(SAMPLE_PLANS)
 PERSONAL_RECORDS = {}  # openid -> { exerciseId -> { weight, reps, volume, date } }
 SEED_STATS = {"imported": 85, "lastImport": time.time() - 86400 * 7}
+
+
+def reset_state():
+    """Restore mutable mock data before a fresh server run."""
+    USERS.clear()
+    WORKOUTS.clear()
+    ADMINS.clear()
+    ADMINS.update(_initial_admins())
+    ADMIN_TOKENS.clear()
+    EXERCISES_DB[:] = copy.deepcopy(SAMPLE_EXERCISES)
+    PLANS_DB[:] = copy.deepcopy(SAMPLE_PLANS)
+    PERSONAL_RECORDS.clear()
+    SEED_STATS.clear()
+    SEED_STATS.update({"imported": 85, "lastImport": time.time() - 86400 * 7})
+
+
+class FitTrackMockServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
 
 
 class FitTrackHandler(BaseHTTPRequestHandler):
@@ -88,13 +112,20 @@ class FitTrackHandler(BaseHTTPRequestHandler):
     # ── 通用响应 ──
 
     def _json(self, code, data=None, msg="ok"):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
         body = {"code": code, "msg": msg}
         if data is not None:
             body["data"] = data
-        self.wfile.write(json.dumps(body, ensure_ascii=False).encode())
+        payload = json.dumps(body, ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+        try:
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError, ConnectionError):
+            return
 
     def _ok(self, data=None, msg="ok"):
         self._json(0, data, msg)
@@ -948,13 +979,14 @@ FitTrackMockHandler = FitTrackHandler
 
 def start_server(port=PORT):
     """启动mock服务器（兼容run_tests.py调用）"""
-    server = HTTPServer(("127.0.0.1", port), FitTrackHandler)
+    reset_state()
+    server = FitTrackMockServer(("127.0.0.1", port), FitTrackHandler)
     print(f"[FitTrack Mock] http://127.0.0.1:{port}")
     return server
 
 
 def run_server():
-    server = HTTPServer(("127.0.0.1", PORT), FitTrackHandler)
+    server = start_server(PORT)
     print(f"FitTrack mock server running on http://127.0.0.1:{PORT}")
     server.serve_forever()
 
