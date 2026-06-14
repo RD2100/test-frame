@@ -155,6 +155,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-ANDROID-ADB-MAESTRO-PROBE-A1`; real-device CI promotion still needs separate review.
 - **Boundary note**: `android.adb.cli` proves only adb executable availability; `android.adb.devices` proves at least one device-state target; `maestro.cli` proves only CLI availability; `maestro.flow.contract` is the first Maestro execution gate.
 
+## 14. MiniApp DevTools and Automator Probe Layers
+- **Platform**: Both
+- **Type**: validation | **Access**: local_command_probe/runtime_endpoint_probe | **Risk**: medium
+- **Preferred for**: distinguishing WeChat DevTools path configuration, DevTools CLI execution, automator SDK availability, and automator endpoint reachability
+- **Forbidden for**: treating `miniapp.devtools.path` or `miniapp.automator.sdk` as MiniApp UI E2E proof, or requiring a real endpoint in baseline preflight
+- **Fallback**: capability evidence JSON with `BLOCKED` for missing DevTools path/CLI, missing SDK, missing endpoint, or unavailable endpoint
+- **Human gate**: yes (making MiniApp endpoint or UI E2E required in shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --capability miniapp.devtools.path,miniapp.devtools.cli,miniapp.automator.sdk,miniapp.automator.endpoint ...`, `artifacts/miniapp.probe.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-MINIAPP-DEVTOOLS-AUTOMATOR-PROBE-A1`; full MiniApp UI E2E promotion still needs separate review.
+- **Boundary note**: `miniapp.devtools.path` proves only path existence; `miniapp.devtools.cli` proves only lightweight CLI invocation; `miniapp.automator.sdk` proves only package resolution; `miniapp.automator.endpoint` is the first runtime endpoint handshake gate.
+
 ---
 
 ## Summary
@@ -174,6 +186,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 11 | TestFrame Capability Probe Matrix | Both | validation | medium | approved | local_probe |
 | 12 | H5 Chromium Smoke and Allure Report Gate | Both | validation | medium | approved | local_probe |
 | 13 | Android ADB and Maestro Probe Layers | Both | validation | medium | approved | local_probe |
+| 14 | MiniApp DevTools and Automator Probe Layers | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

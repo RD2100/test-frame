@@ -90,9 +90,13 @@ def test_playwright_capability_is_cli_scoped():
     assert "playwright" not in PROVIDERS
 
 
-def test_miniapp_capability_is_path_scoped():
+def test_miniapp_capabilities_are_scoped():
     assert "miniapp.devtools.path" in PROVIDERS
+    assert "miniapp.devtools.cli" in PROVIDERS
+    assert "miniapp.automator.sdk" in PROVIDERS
+    assert "miniapp.automator.endpoint" in PROVIDERS
     assert "miniapp.devtools" not in PROVIDERS
+    assert "miniapp.automator" not in PROVIDERS
 
 
 def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):

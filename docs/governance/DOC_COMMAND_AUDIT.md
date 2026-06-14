@@ -55,6 +55,7 @@
 ```powershell
 python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
 python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
+python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
 ```
 
 ## P1 H5 Browser Smoke / Allure Boundaries
@@ -86,6 +87,19 @@ Added 2026-06-14 for `P1-ANDROID-ADB-MAESTRO-PROBE-A1`.
 
 Hard rule: do not report `android.adb.cli PASS` as Android device/E2E PASS, and do not report `maestro.cli PASS` as Maestro flow PASS.
 
+## P1 MiniApp DevTools / Automator Probe Boundaries
+
+Added 2026-06-14 for `P1-MINIAPP-DEVTOOLS-AUTOMATOR-PROBE-A1`.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `miniapp.devtools.path` | A configured WeChat DevTools path exists. | CLI execution, automator endpoint, or MiniApp UI E2E success. |
+| `miniapp.devtools.cli` | The resolved WeChat DevTools CLI can complete a lightweight help probe. | A project can open or automation can attach. |
+| `miniapp.automator.sdk` | Node can resolve the configured miniprogram automator package. | DevTools is running or reachable. |
+| `miniapp.automator.endpoint` | The configured `MINIAPP_AUTOMATOR_ENDPOINT` can complete the runtime probe handshake. | Full route coverage, selector assertions, login, or business E2E success. |
+
+Hard rule: do not report `miniapp.devtools.path PASS` or `miniapp.automator.sdk PASS` as MiniApp automation PASS, and do not report `miniapp.automator.endpoint PASS` as full MiniApp UI E2E PASS.
+
 状态语义：
 
 | 状态 | 含义 |
@@ -96,7 +110,7 @@ Hard rule: do not report `android.adb.cli PASS` as Android device/E2E PASS, and 
 | `UNSUPPORTED` | 当前平台或项目暂不支持 |
 | `NOT_REQUIRED` | 本轮 profile 未要求该能力 |
 
-当前 probe 覆盖：`android.adb`、`maestro`、`allure`、`playwright.cli`、`miniapp.devtools.path`、`metersphere.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
+当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
 
 后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
 

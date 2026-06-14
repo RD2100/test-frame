@@ -20,7 +20,10 @@ PROVIDERS: dict[str, Provider] = {
     "allure": allure.probe,
     "playwright.cli": playwright.probe,
     "playwright.browser.chromium": playwright.probe_chromium,
-    "miniapp.devtools.path": miniapp.probe,
+    "miniapp.devtools.path": miniapp.probe_path,
+    "miniapp.devtools.cli": miniapp.probe_cli,
+    "miniapp.automator.sdk": miniapp.probe_sdk,
+    "miniapp.automator.endpoint": miniapp.probe_endpoint,
     "metersphere.env": metersphere.probe,
 }
 
