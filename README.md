@@ -55,6 +55,18 @@ MiniApp automation is split into runtime layers:
 
 Required runtime verification must use `miniapp.automator.endpoint`, not `miniapp.devtools.path` or `miniapp.automator.sdk`.
 
+## P1 MeterSphere Adapter Contract Boundaries
+
+MeterSphere integration is split into environment, fake contract, and real auth layers:
+
+| Capability | PASS condition | Does not prove |
+|---|---|---|
+| `metersphere.env` | Required env vars are present. | Real service authentication. |
+| `metersphere.fake.contract` | Local fake MeterSphere report payload normalizes through the adapter contract. | A real MeterSphere instance is reachable. |
+| `metersphere.real.auth` | Explicit real-auth profile reaches MeterSphere and receives valid auth JSON. | Test plan execution or API regression success. |
+
+Fake contract PASS must not be reported as real MeterSphere platform integration PASS.
+
 ## 解决什么问题
 
 团队做移动端/小程序/H5 测试时通常会引入多种工具——Android 冒烟用 Maestro，H5 用 Playwright，小程序用微信自动框架，API 用 MeterSphere。问题是：**每个工具的调用方式、返回值格式、失败语义都不一样**。跑完一圈后你拿到的是七份散落的结果，无法统一判断质量是否达标。

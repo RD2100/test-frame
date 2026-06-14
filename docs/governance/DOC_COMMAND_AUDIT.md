@@ -56,6 +56,7 @@
 python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
 python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
 python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
+python -m cli.main check --capability metersphere.real.auth --required metersphere.real.auth --evidence artifacts/metersphere.real.required.json
 ```
 
 ## P1 H5 Browser Smoke / Allure Boundaries
@@ -100,6 +101,18 @@ Added 2026-06-14 for `P1-MINIAPP-DEVTOOLS-AUTOMATOR-PROBE-A1`.
 
 Hard rule: do not report `miniapp.devtools.path PASS` or `miniapp.automator.sdk PASS` as MiniApp automation PASS, and do not report `miniapp.automator.endpoint PASS` as full MiniApp UI E2E PASS.
 
+## P1 MeterSphere Adapter Contract Boundaries
+
+Added 2026-06-14 for `P1-METERSPHERE-ADAPTER-CONTRACT-A1`.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `metersphere.env` | `METERSPHERE_BASE_URL`, `METERSPHERE_TOKEN`, and `METERSPHERE_PROJECT_ID` are present. | Real authentication or service reachability. |
+| `metersphere.fake.contract` | A local fake MeterSphere report payload normalizes through the adapter contract with expected pass/fail mapping. | A real MeterSphere instance, project, or test plan exists. |
+| `metersphere.real.auth` | Only when explicitly enabled, the real auth probe reaches MeterSphere and receives valid JSON. | Test plan execution, report polling, or API regression success. |
+
+Hard rule: do not report `metersphere.env PASS` or `metersphere.fake.contract PASS` as real MeterSphere platform integration PASS. Tokens must remain in env only and must be redacted from evidence.
+
 状态语义：
 
 | 状态 | 含义 |
@@ -110,7 +123,7 @@ Hard rule: do not report `miniapp.devtools.path PASS` or `miniapp.automator.sdk 
 | `UNSUPPORTED` | 当前平台或项目暂不支持 |
 | `NOT_REQUIRED` | 本轮 profile 未要求该能力 |
 
-当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
+当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`、`metersphere.fake.contract`、`metersphere.real.auth`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接；`metersphere.fake.contract` 只证明本地 adapter contract，不证明真实平台集成。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
 
 后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
 

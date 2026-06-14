@@ -99,6 +99,14 @@ def test_miniapp_capabilities_are_scoped():
     assert "miniapp.automator" not in PROVIDERS
 
 
+def test_metersphere_capabilities_are_scoped():
+    assert "metersphere.env" in PROVIDERS
+    assert "metersphere.fake.contract" in PROVIDERS
+    assert "metersphere.real.auth" in PROVIDERS
+    assert "metersphere.real" not in PROVIDERS
+    assert "metersphere.platform" not in PROVIDERS
+
+
 def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):
     local_bin = tmp_path / "node_modules" / ".bin"
     local_bin.mkdir(parents=True)

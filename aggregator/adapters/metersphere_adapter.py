@@ -3,6 +3,20 @@
 import requests
 
 
+def normalize_cases(data: dict) -> list[dict]:
+    """Normalize MeterSphere report cases into TestFrame result rows."""
+    results = []
+    for case in data.get("cases", []):
+        results.append({
+            "test_name": case.get("name", "unknown"),
+            "status": "passed" if case.get("status") == "success" else "failed",
+            "tool": "metersphere",
+            "duration_ms": case.get("duration", 0),
+            "error": {"message": case.get("error", "")} if case.get("error") else None,
+        })
+    return results
+
+
 def collect(project_config: dict = None) -> list[dict]:
     """从MeterSphere API收集测试结果"""
     if project_config is None:
@@ -24,15 +38,6 @@ def collect(project_config: dict = None) -> list[dict]:
         if resp.status_code != 200:
             return []
         data = resp.json().get("data", {})
-        results = []
-        for case in data.get("cases", []):
-            results.append({
-                "test_name": case.get("name", "unknown"),
-                "status": "passed" if case.get("status") == "success" else "failed",
-                "tool": "metersphere",
-                "duration_ms": case.get("duration", 0),
-                "error": {"message": case.get("error", "")} if case.get("error") else None,
-            })
-        return results
+        return normalize_cases(data)
     except Exception:
         return []

@@ -167,6 +167,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-MINIAPP-DEVTOOLS-AUTOMATOR-PROBE-A1`; full MiniApp UI E2E promotion still needs separate review.
 - **Boundary note**: `miniapp.devtools.path` proves only path existence; `miniapp.devtools.cli` proves only lightweight CLI invocation; `miniapp.automator.sdk` proves only package resolution; `miniapp.automator.endpoint` is the first runtime endpoint handshake gate.
 
+## 15. MeterSphere Adapter Contract and Real Auth Probe
+- **Platform**: Both
+- **Type**: validation | **Access**: local_fake_contract/optional_network_auth | **Risk**: medium
+- **Preferred for**: proving local MeterSphere adapter status mapping, env readiness, and explicitly enabled real auth reachability
+- **Forbidden for**: treating `metersphere.env` or `metersphere.fake.contract` as real MeterSphere platform integration, storing tokens in code/evidence, or calling a real service without explicit enablement
+- **Fallback**: capability evidence JSON with `BLOCKED` for missing env, unreachable service, or real auth not enabled
+- **Human gate**: yes (real service auth/test-plan execution in shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --capability metersphere.env,metersphere.fake.contract ...`, `artifacts/metersphere.probe.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-METERSPHERE-ADAPTER-CONTRACT-A1`; real test-plan execution still needs separate review.
+- **Boundary note**: `metersphere.env` proves only required env presence; `metersphere.fake.contract` proves local fake response normalization; `metersphere.real.auth` is optional and proves authentication reachability only, not test execution.
+
 ---
 
 ## Summary
@@ -187,6 +199,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 12 | H5 Chromium Smoke and Allure Report Gate | Both | validation | medium | approved | local_probe |
 | 13 | Android ADB and Maestro Probe Layers | Both | validation | medium | approved | local_probe |
 | 14 | MiniApp DevTools and Automator Probe Layers | Both | validation | medium | approved | local_probe |
+| 15 | MeterSphere Adapter Contract and Real Auth Probe | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

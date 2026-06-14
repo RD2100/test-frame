@@ -24,7 +24,9 @@ PROVIDERS: dict[str, Provider] = {
     "miniapp.devtools.cli": miniapp.probe_cli,
     "miniapp.automator.sdk": miniapp.probe_sdk,
     "miniapp.automator.endpoint": miniapp.probe_endpoint,
-    "metersphere.env": metersphere.probe,
+    "metersphere.env": metersphere.probe_env,
+    "metersphere.fake.contract": metersphere.probe_fake_contract,
+    "metersphere.real.auth": metersphere.probe_real_auth,
 }
 
 
