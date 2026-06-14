@@ -1,0 +1,7 @@
+# Keep governance artifacts byte-stable for Get-FileHash-based drift checks.
+.gitattributes text eol=lf
+AGENTS.md text eol=lf
+rules/** text eol=lf
+docs/agent-runtime/** text eol=lf
+schemas/** text eol=lf
+templates/runtime-bootstrap/** text eol=lf
