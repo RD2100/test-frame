@@ -4,6 +4,23 @@
 
 ---
 
+## P1 H5 Chromium Smoke and Allure Fallback
+
+`playwright.cli` only proves the Playwright CLI/package is callable. Browser availability is checked separately by:
+
+```powershell
+python -m cli.main check --capability playwright.cli,playwright.browser.chromium --required playwright.cli --required playwright.browser.chromium --evidence artifacts\playwright.required.json
+```
+
+Repo-local H5 browser smoke is verified by:
+
+```powershell
+npx playwright install chromium
+npm run test:h5:smoke
+```
+
+Allure HTML is a PASS only when `allure generate` exits 0 and `allure-report/index.html` exists. If Allure is unavailable, `python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5` must write `allure-generation.json` with `BLOCKED` instead of claiming HTML was generated.
+
 ## 解决什么问题
 
 团队做移动端/小程序/H5 测试时通常会引入多种工具——Android 冒烟用 Maestro，H5 用 Playwright，小程序用微信自动框架，API 用 MeterSphere。问题是：**每个工具的调用方式、返回值格式、失败语义都不一样**。跑完一圈后你拿到的是七份散落的结果，无法统一判断质量是否达标。

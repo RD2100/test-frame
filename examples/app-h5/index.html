@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TestFrame H5 Fixture</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      color: #1f2937;
+      background: #f8fafc;
+    }
+
+    main {
+      max-width: 36rem;
+      padding: 1.5rem;
+      border: 1px solid #dbeafe;
+      border-radius: 0.75rem;
+      background: #ffffff;
+    }
+
+    button {
+      margin-top: 1rem;
+      padding: 0.65rem 1rem;
+      border: 0;
+      border-radius: 0.5rem;
+      color: #ffffff;
+      background: #2563eb;
+      cursor: pointer;
+    }
+
+    [data-testid="status"] {
+      margin-top: 1rem;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 data-testid="heading">TestFrame H5 Smoke Fixture</h1>
+    <p>This local fixture verifies that Playwright can drive a real browser without external services.</p>
+    <button type="button" data-testid="increment">Run interaction</button>
+    <p data-testid="status">idle</p>
+  </main>
+  <script>
+    const button = document.querySelector('[data-testid="increment"]');
+    const status = document.querySelector('[data-testid="status"]');
+    let count = 0;
+
+    button.addEventListener('click', () => {
+      count += 1;
+      status.textContent = `clicked:${count}`;
+      document.body.dataset.smokeState = 'ready';
+    });
+  </script>
+</body>
+</html>

@@ -17,6 +17,7 @@ PROVIDERS: dict[str, Provider] = {
     "maestro": maestro.probe,
     "allure": allure.probe,
     "playwright.cli": playwright.probe,
+    "playwright.browser.chromium": playwright.probe_chromium,
     "miniapp.devtools.path": miniapp.probe,
     "metersphere.env": metersphere.probe,
 }

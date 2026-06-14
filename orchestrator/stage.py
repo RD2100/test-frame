@@ -313,14 +313,26 @@ class Stage:
             base_url = playwright_config.get("base_url", "")
             profile_name = self.project_config.get("_profile", "")
 
-            collect_and_generate(
+            report_result = collect_and_generate(
                 project_name,
                 project_config=self.project_config,
                 stage_results=stage_results,
                 profile=profile_name,
                 base_url=base_url,
             )
-            return True
+            if report_result.status == "PASS":
+                self.results["report"] = STATUS_PASSED
+            elif report_result.status == "BLOCKED":
+                self.results["report"] = STATUS_BLOCKED
+            else:
+                self.results["report"] = STATUS_FAILED
+            self.results["report_detail"] = {
+                "status": self.results["report"],
+                "reason": report_result.reason,
+                "manifest_path": report_result.manifest_path,
+                "html_path": report_result.html_path,
+            }
+            return report_result.status == "PASS"
         except Exception as e:
             print(f"  [REPORT] [FAIL] 报告生成异常: {e}")
             self.results["report"] = STATUS_FAILED

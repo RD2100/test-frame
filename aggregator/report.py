@@ -24,6 +24,7 @@ def generate_regression_report(
     date: str = None,
     output_dir: str = None,
     project_config: dict = None,
+    allure_generation: dict = None,
 ) -> dict:
     """生成完整的回归报告套件。
 
@@ -132,6 +133,8 @@ def generate_regression_report(
     blockers = _compute_blockers(stage_results or {}, environment_blocks, auth_mode)
 
     # --- Generate regression-summary.json ---
+    allure_generation = allure_generation or {}
+    allure_html_path = allure_generation.get("html_path") or ""
     summary = {
         "project": project_name,
         "profile": profile,
@@ -152,8 +155,13 @@ def generate_regression_report(
         "artifacts": {
             "evidence": os.path.join(base_dir, "evidence.json"),
             "markdown": os.path.join(base_dir, "regression-report.md"),
-            "allure": os.path.join(base_dir, "allure-report", "index.html"),
+            "allure": allure_html_path,
+            "allure_generation": allure_generation.get(
+                "manifest_path",
+                os.path.join(base_dir, "allure-generation.json"),
+            ),
         },
+        "allure_generation": allure_generation,
         "generated_at": datetime.now().isoformat(),
     }
     summary_path = os.path.join(base_dir, "regression-summary.json")
@@ -180,6 +188,7 @@ def generate_regression_report(
         verdicts=verdicts,
         auth_mode=auth_mode,
         business_smoke=business_smoke,
+        allure_generation=allure_generation,
     )
     md_path = os.path.join(base_dir, "regression-report.md")
     with open(md_path, "w", encoding="utf-8") as f:
@@ -209,6 +218,7 @@ def _render_markdown(**ctx) -> str:
     explorer_summary = ctx.get("explorer_summary")
     top_failures = ctx.get("top_failures", [])
     base_dir = ctx["base_dir"]
+    allure_generation = ctx.get("allure_generation") or {}
 
     status_icon = {"passed": "PASS", "failed": "FAIL", "blocked": "BLOCKED"}
     icon = status_icon.get(overall_status, "UNKNOWN")
@@ -428,7 +438,16 @@ def _render_markdown(**ctx) -> str:
     lines.append("")
     lines.append(f"- Evidence JSON: `{base_dir}/evidence.json`")
     lines.append(f"- Regression Summary: `{base_dir}/regression-summary.json`")
-    lines.append(f"- Allure Report: `{base_dir}/allure-report/index.html`")
+    if allure_generation.get("status") == "PASS" and allure_generation.get("html_path"):
+        lines.append(f"- Allure Report: `{allure_generation['html_path']}`")
+    elif allure_generation:
+        lines.append(
+            f"- Allure HTML: `{allure_generation.get('status')}` "
+            f"({allure_generation.get('reason', '')})"
+        )
+        lines.append(f"- Allure Generation Manifest: `{allure_generation.get('manifest_path', '')}`")
+    else:
+        lines.append(f"- Allure Report: `{base_dir}/allure-report/index.html`")
     lines.append(f"- Playwright Results: `reports/playwright-results.json`")
     lines.append(f"- Playwright Traces: `test-results/`")
     lines.append("")

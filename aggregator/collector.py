@@ -10,6 +10,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from aggregator.allure_generator import AllureGenerationResult, generate_allure_report
 from schema.stage_results import iter_public_tool_results
 
 # All adapter modules with collect(project_config) -> list[dict]
@@ -65,10 +66,10 @@ def collect_all_results(project_config: dict = None) -> list[dict]:
     return all_results
 
 
-def collect_and_generate(project_name: str, date: str = None, output_dir: str = None,
-                         project_config: dict = None, stage_results: dict = None,
-                         profile: str = None, quality_gate: dict = None,
-                         base_url: str = "", command: str = "") -> str:
+def _legacy_collect_and_generate(project_name: str, date: str = None, output_dir: str = None,
+                                 project_config: dict = None, stage_results: dict = None,
+                                 profile: str = None, quality_gate: dict = None,
+                                 base_url: str = "", command: str = "") -> str:
     """收集所有工具结果并生成Allure报告"""
     base_dir = output_dir or os.path.join("reports", project_name)
     if date is None:
@@ -133,6 +134,81 @@ def collect_and_generate(project_name: str, date: str = None, output_dir: str = 
         )
 
     return allure_report_dir
+
+
+def collect_and_generate(project_name: str, date: str = None, output_dir: str = None,
+                         project_config: dict = None, stage_results: dict = None,
+                         profile: str = None, quality_gate: dict = None,
+                         base_url: str = "", command: str = "") -> AllureGenerationResult:
+    """Collect results, write machine-readable outputs, then generate Allure HTML if available."""
+    base_dir = output_dir or os.path.join("reports", project_name)
+    if date is None:
+        base_dir = os.path.join(base_dir, datetime.now().strftime("%Y-%m-%d"))
+    else:
+        base_dir = os.path.join(base_dir, date)
+
+    allure_results_dir = os.path.join(base_dir, "allure-results")
+    allure_report_dir = os.path.join(base_dir, "allure-report")
+    os.makedirs(allure_results_dir, exist_ok=True)
+
+    if stage_results is not None:
+        results = _stage_results_to_report_results(stage_results)
+    else:
+        results = collect_all_results(project_config)
+
+    for result in results:
+        _write_allure_result(result, allure_results_dir)
+
+    summary_path = os.path.join(base_dir, "summary.json")
+    _write_summary(results, summary_path)
+
+    allure_generation = generate_allure_report(
+        allure_results_dir,
+        allure_report_dir,
+        summary_path=summary_path,
+    )
+    if allure_generation.status == "PASS":
+        print(f"  [REPORT] Allure HTML report: {allure_generation.html_path}")
+    elif allure_generation.status == "BLOCKED":
+        print(
+            "  [REPORT][BLOCKED] Allure HTML not generated: "
+            f"{allure_generation.reason}; fallback manifest: {allure_generation.manifest_path}"
+        )
+    else:
+        print(
+            "  [REPORT][FAILED] Allure HTML generation failed: "
+            f"{allure_generation.reason}; manifest: {allure_generation.manifest_path}"
+        )
+
+    has_report_context = (
+        stage_results is not None
+        or profile is not None
+        or quality_gate is not None
+        or bool(base_url)
+        or bool(command)
+    )
+    if has_report_context:
+        from aggregator.report import generate_regression_report
+
+        report_profile = profile
+        if report_profile is None and project_config:
+            report_profile = project_config.get("_profile")
+
+        generate_regression_report(
+            project_name=project_name,
+            profile=report_profile or "unknown",
+            results=results,
+            stage_results=stage_results or {},
+            quality_gate=quality_gate,
+            base_url=base_url,
+            command=command,
+            date=os.path.basename(base_dir),
+            output_dir=base_dir,
+            project_config=project_config,
+            allure_generation=allure_generation.to_dict(),
+        )
+
+    return allure_generation
 
 
 def collect_failed_results(project_config: dict = None) -> list[dict]:

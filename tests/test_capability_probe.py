@@ -4,6 +4,7 @@ import pytest
 
 from capability.command import CommandEvidence
 from capability.probe import PROVIDERS, required_gate_failed, run_probes, write_evidence
+from capability.providers import allure
 from capability.providers.common import probe_command
 from capability.schema import CapabilityResult, redact_value
 
@@ -83,6 +84,25 @@ def test_playwright_capability_is_cli_scoped():
 def test_miniapp_capability_is_path_scoped():
     assert "miniapp.devtools.path" in PROVIDERS
     assert "miniapp.devtools" not in PROVIDERS
+
+
+def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):
+    local_bin = tmp_path / "node_modules" / ".bin"
+    local_bin.mkdir(parents=True)
+    (local_bin / "allure.cmd").write_text("@echo off\n", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(allure, "resolve_executable", lambda name: None)
+    monkeypatch.setattr(
+        allure,
+        "run_command",
+        lambda command: CommandEvidence(command, 0, "2.41.0", ""),
+    )
+
+    result = allure.probe()
+
+    assert result.status == "PASS"
+    assert result.evidence["command"][0].endswith("allure.cmd")
 
 
 def test_capability_result_rejects_invalid_status():

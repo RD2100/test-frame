@@ -131,6 +131,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14; making optional probes required in CI still needs a separate human gate.
 - **Approval scope**: probe framework only; individual external capabilities are not approved as real execution gates until their own required profile and evidence are reviewed.
 
+## 12. H5 Chromium Smoke and Allure Report Gate
+- **Platform**: Both
+- **Type**: validation | **Access**: local_browser_probe/report_generation | **Risk**: medium
+- **Preferred for**: proving Chromium browser launch, repo-local H5 smoke execution, and non-fake Allure HTML/fallback report status
+- **Forbidden for**: treating `playwright.cli` as browser/E2E proof, treating missing Allure CLI as HTML PASS, or using external websites/accounts/services as the H5 smoke target
+- **Fallback**: `allure-generation.json` with status `BLOCKED` or `FAILED`; Playwright browser probe evidence under `--evidence`
+- **Human gate**: yes (making browser smoke or Allure HTML required in shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `npm run test:h5:smoke`, `python -m cli.main check --capability playwright.browser.chromium ...`, `allure-generation.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`; GPT/reviewer acceptance is still required before promoting this to a shared CI required gate.
+- **Boundary note**: `playwright.browser.chromium` proves browser launch only; `h5.smoke` proves the repo-local fixture only; `allure.html` requires zero exit and `index.html`; `allure.fallback` is evidence preservation, not HTML success.
+
 ---
 
 ## Summary
@@ -148,6 +160,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 9 | Hooks (Draft) | Claude | hook | medium | approved | audit-only |
 | 10 | Phase 6 SourceLock | Both | source_lock | critical | approved | design_only |
 | 11 | TestFrame Capability Probe Matrix | Both | validation | medium | approved | local_probe |
+| 12 | H5 Chromium Smoke and Allure Report Gate | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

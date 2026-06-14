@@ -241,8 +241,21 @@ class TestReportStageProductionPath:
             ],
         )
         monkeypatch.setattr(
-            "aggregator.collector.subprocess.run",
-            lambda *args, **kwargs: None,
+            "aggregator.collector.generate_allure_report",
+            lambda results_dir, report_dir, summary_path=None: __import__(
+                "aggregator.allure_generator",
+                fromlist=["AllureGenerationResult"],
+            ).AllureGenerationResult(
+                status="PASS",
+                results_dir=str(results_dir),
+                report_dir=str(report_dir),
+                manifest_path=str(os.path.join(os.path.dirname(report_dir), "allure-generation.json")),
+                command=["allure", "generate"],
+                exit_code=0,
+                reason="ok",
+                html_path=str(os.path.join(report_dir, "index.html")),
+                summary_path=str(summary_path),
+            ),
         )
 
         stage = Stage(
@@ -260,7 +273,8 @@ class TestReportStageProductionPath:
         )
 
         assert stage._run_report() is True
-        assert "report_detail" not in stage.results
+        assert stage.results["report"] == STATUS_PASSED
+        assert stage.results["report_detail"]["reason"] == "ok"
         summary_files = list(
             (tmp_path / "reports" / "test_proj").glob("*/regression-summary.json")
         )

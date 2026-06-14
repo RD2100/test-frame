@@ -4,6 +4,7 @@ import sys
 import os
 import json
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -14,6 +15,7 @@ from aggregator.collector import (
     collect_failed_results,
     collect_and_generate,
 )
+from aggregator.allure_generator import AllureGenerationResult
 
 
 class TestWriteSummary:
@@ -194,15 +196,30 @@ class TestCollectAndGenerate:
         def fail_if_collect_called(project_config):
             raise AssertionError("stage_results should be the report data source")
 
-        def fake_run(*args, **kwargs):
-            calls["allure_run"] = {"args": args, "kwargs": kwargs}
+        def fake_generate_allure_report(results_dir, report_dir, summary_path=None):
+            calls["allure_run"] = {
+                "results_dir": results_dir,
+                "report_dir": report_dir,
+                "summary_path": summary_path,
+            }
+            return AllureGenerationResult(
+                status="PASS",
+                results_dir=str(results_dir),
+                report_dir=str(report_dir),
+                manifest_path=str(Path(report_dir).parent / "allure-generation.json"),
+                command=["allure", "generate"],
+                exit_code=0,
+                reason="ok",
+                html_path=str(Path(report_dir) / "index.html"),
+                summary_path=str(summary_path),
+            )
 
         def fake_generate_regression_report(**kwargs):
             calls["regression_report"] = kwargs
             return {"summary": "summary.json", "markdown": "regression-report.md"}
 
         monkeypatch.setattr("aggregator.collector.collect_all_results", fail_if_collect_called)
-        monkeypatch.setattr("aggregator.collector.subprocess.run", fake_run)
+        monkeypatch.setattr("aggregator.collector.generate_allure_report", fake_generate_allure_report)
         monkeypatch.setattr(
             "aggregator.report.generate_regression_report",
             fake_generate_regression_report,
@@ -266,14 +283,25 @@ class TestCollectAndGenerate:
         def fake_collect(project_config):
             return []
 
-        def fake_run(*args, **kwargs):
+        def fake_generate_allure_report(results_dir, report_dir, summary_path=None):
             calls["allure_run"] = True
+            return AllureGenerationResult(
+                status="PASS",
+                results_dir=str(results_dir),
+                report_dir=str(report_dir),
+                manifest_path=str(Path(report_dir).parent / "allure-generation.json"),
+                command=["allure", "generate"],
+                exit_code=0,
+                reason="ok",
+                html_path=str(Path(report_dir) / "index.html"),
+                summary_path=str(summary_path),
+            )
 
         def fail_if_called(**kwargs):
             raise AssertionError("regression report should require orchestrator context")
 
         monkeypatch.setattr("aggregator.collector.collect_all_results", fake_collect)
-        monkeypatch.setattr("aggregator.collector.subprocess.run", fake_run)
+        monkeypatch.setattr("aggregator.collector.generate_allure_report", fake_generate_allure_report)
         monkeypatch.setattr("aggregator.report.generate_regression_report", fail_if_called)
 
         report_path = collect_and_generate(

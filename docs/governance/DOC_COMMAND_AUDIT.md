@@ -57,6 +57,20 @@ python -m cli.main check --capability all --evidence artifacts/capabilities.loca
 python -m cli.main check --capability android.adb --required android.adb --evidence artifacts/android.required.json
 ```
 
+## P1 H5 Browser Smoke / Allure Boundaries
+
+Added 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`.
+
+| Capability or command | What it proves | What it does not prove |
+|---|---|---|
+| `playwright.cli` | The Playwright package/CLI can answer `npx playwright --version`. | It does not prove any browser binary is installed or launchable. |
+| `playwright.browser.chromium` | Playwright can launch and close Chromium headless through `scripts/probe-playwright-browser.mjs`. | It does not prove a project H5 scenario passed. |
+| `npm run test:h5:smoke` | Chromium opens the repo-local `examples/app-h5/index.html` fixture and verifies a real click/state assertion. | It does not prove FitTrack admin, external backends, auth, or the full H5 explorer suite. |
+| `allure.html` | `allure generate` exited 0 and `allure-report/index.html` exists. | A called command alone is not enough. |
+| `allure.fallback` | HTML was not generated, but `summary.json`, `allure-results/`, and `allure-generation.json` preserve machine-readable evidence. | It is not an HTML report PASS. |
+
+Hard rule: do not report `playwright.cli PASS` as H5 E2E PASS, and do not report Allure HTML generated unless `index.html` exists after a zero-exit generation command.
+
 状态语义：
 
 | 状态 | 含义 |

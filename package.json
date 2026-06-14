@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "test:h5": "npx playwright test tests/h5/ --config=playwright.config.js",
+    "test:h5:smoke": "npx playwright test tests/h5/smoke.spec.js --project=chromium --config=playwright.config.js",
     "test:unit:js": "node tests/h5/support/__tests__/oracles.test.js",
     "test:miniapp": "npx jest --config=jest.config.js",
     "report:allure": "allure generate reports/allure-results/ -o reports/allure-report/ --clean"

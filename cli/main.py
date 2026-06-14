@@ -54,8 +54,18 @@ def report(project, date, output):
     """生成Allure报告"""
     from aggregator.collector import collect_and_generate
 
-    report_path = collect_and_generate(project, date, output)
-    click.echo(f"[OK] Report generated: {report_path}")
+    result = collect_and_generate(project, date, output)
+    if result.status == "PASS":
+        click.echo(f"[OK] Allure HTML generated: {result.html_path}")
+        return
+    if result.status == "BLOCKED":
+        click.echo(f"[BLOCKED] Allure HTML not generated: {result.reason}")
+        click.echo(f"[OK] Fallback manifest written: {result.manifest_path}")
+        return
+
+    click.echo(f"[FAIL] Allure HTML generation failed: {result.reason}", err=True)
+    click.echo(f"[FAIL] Manifest written: {result.manifest_path}", err=True)
+    sys.exit(1)
 
 
 @cli.command()
