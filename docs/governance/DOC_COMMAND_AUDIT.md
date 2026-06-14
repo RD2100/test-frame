@@ -54,7 +54,7 @@
 
 ```powershell
 python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
-python -m cli.main check --capability android.adb --required android.adb --evidence artifacts/android.required.json
+python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
 ```
 
 ## P1 H5 Browser Smoke / Allure Boundaries
@@ -72,6 +72,19 @@ Added 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`.
 Hard rule: do not report `playwright.cli PASS` as H5 E2E PASS, and do not report Allure HTML generated unless `index.html` exists after a zero-exit generation command.
 
 Default report mode preserves evidence: Allure `BLOCKED` writes `allure-generation.json` and exits 0. Required HTML mode is stricter: `python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5 --require-html` exits non-zero for `BLOCKED` or `FAILED`.
+
+## P1 Android ADB / Maestro Probe Boundaries
+
+Added 2026-06-14 for `P1-ANDROID-ADB-MAESTRO-PROBE-A1`.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `android.adb.cli` | `adb version` can execute. | Device availability or Android E2E success. |
+| `android.adb.devices` | At least one `adb devices -l` entry is in `device` state. | App installation, login, or UI flow success. |
+| `maestro.cli` | `maestro --version` can execute. | Maestro can run a flow. |
+| `maestro.flow.contract` | The minimal flow can run when CLI, device, and flow preconditions exist. | Full Android regression coverage. |
+
+Hard rule: do not report `android.adb.cli PASS` as Android device/E2E PASS, and do not report `maestro.cli PASS` as Maestro flow PASS.
 
 状态语义：
 

@@ -13,8 +13,10 @@ from capability.schema import CapabilityResult
 Provider = Callable[[bool], CapabilityResult]
 
 PROVIDERS: dict[str, Provider] = {
-    "android.adb": adb.probe,
-    "maestro": maestro.probe,
+    "android.adb.cli": adb.probe_cli,
+    "android.adb.devices": adb.probe_devices,
+    "maestro.cli": maestro.probe_cli,
+    "maestro.flow.contract": maestro.probe_flow_contract,
     "allure": allure.probe,
     "playwright.cli": playwright.probe,
     "playwright.browser.chromium": playwright.probe_chromium,

@@ -143,6 +143,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`; GPT/reviewer acceptance is still required before promoting this to a shared CI required gate.
 - **Boundary note**: `playwright.browser.chromium` proves browser launch only; `h5.smoke` proves the repo-local fixture only; `allure.html` requires zero exit and `index.html`; default `allure.fallback` is evidence preservation, not HTML success; `--require-html` makes BLOCKED/FAILED report generation exit non-zero.
 
+## 13. Android ADB and Maestro Probe Layers
+- **Platform**: Both
+- **Type**: validation | **Access**: local_command_probe/device_probe | **Risk**: medium
+- **Preferred for**: distinguishing adb CLI availability, Android device availability, Maestro CLI availability, and minimal Maestro flow execution
+- **Forbidden for**: treating `android.adb.cli` as device/E2E proof, treating `maestro.cli` as flow proof, or requiring a real device in baseline preflight
+- **Fallback**: capability evidence JSON with `BLOCKED` for missing adb, missing device, missing Maestro, or missing flow preconditions
+- **Human gate**: yes (making Android device or Maestro flow required in shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --capability android.adb.cli,android.adb.devices,maestro.cli ...`, `artifacts/android.probe.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-ANDROID-ADB-MAESTRO-PROBE-A1`; real-device CI promotion still needs separate review.
+- **Boundary note**: `android.adb.cli` proves only adb executable availability; `android.adb.devices` proves at least one device-state target; `maestro.cli` proves only CLI availability; `maestro.flow.contract` is the first Maestro execution gate.
+
 ---
 
 ## Summary
@@ -161,6 +173,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 10 | Phase 6 SourceLock | Both | source_lock | critical | approved | design_only |
 | 11 | TestFrame Capability Probe Matrix | Both | validation | medium | approved | local_probe |
 | 12 | H5 Chromium Smoke and Allure Report Gate | Both | validation | medium | approved | local_probe |
+| 13 | Android ADB and Maestro Probe Layers | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

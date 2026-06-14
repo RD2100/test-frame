@@ -29,6 +29,19 @@ python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5 --r
 
 With `--require-html`, both `BLOCKED` and `FAILED` Allure generation states exit non-zero.
 
+## P1 Android ADB and Maestro Probe Boundaries
+
+Android automation is split into environment layers:
+
+| Capability | PASS condition | Does not prove |
+|---|---|---|
+| `android.adb.cli` | `adb version` exits 0. | Any device is connected. |
+| `android.adb.devices` | `adb devices -l` reports at least one `device` state target. | App installed, UI smoke, or Maestro flow success. |
+| `maestro.cli` | `maestro --version` exits 0. | A flow can run. |
+| `maestro.flow.contract` | Minimal Maestro flow executes when CLI, device, and flow are present. | Full Android E2E coverage. |
+
+Required device verification must use `android.adb.devices`, not `android.adb.cli`.
+
 ## 解决什么问题
 
 团队做移动端/小程序/H5 测试时通常会引入多种工具——Android 冒烟用 Maestro，H5 用 Playwright，小程序用微信自动框架，API 用 MeterSphere。问题是：**每个工具的调用方式、返回值格式、失败语义都不一样**。跑完一圈后你拿到的是七份散落的结果，无法统一判断质量是否达标。

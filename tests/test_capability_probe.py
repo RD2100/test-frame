@@ -12,7 +12,7 @@ from capability.schema import CapabilityResult, redact_value
 def test_missing_executable_is_blocked(monkeypatch):
     monkeypatch.setattr("capability.providers.common.resolve_executable", lambda _: None)
 
-    result = probe_command("android.adb", ["adb", "--version"])
+    result = probe_command("android.adb.cli", ["adb", "--version"])
 
     assert result.status == "BLOCKED"
     assert result.reason == "adb not found in PATH"
@@ -26,7 +26,7 @@ def test_nonzero_command_is_failed(monkeypatch):
         lambda command: CommandEvidence(command, 2, "", "boom"),
     )
 
-    result = probe_command("maestro", ["maestro", "--version"])
+    result = probe_command("maestro.cli", ["maestro", "--version"])
 
     assert result.status == "FAILED"
     assert result.evidence["exit_code"] == 2
@@ -68,12 +68,21 @@ def test_run_probes_rejects_unknown_capability():
 
 def test_run_probes_rejects_unknown_required_capability():
     with pytest.raises(ValueError, match="Unknown required capability"):
-        run_probes(["android.adb"], required=["does.not.exist"])
+        run_probes(["android.adb.cli"], required=["does.not.exist"])
 
 
 def test_run_probes_rejects_required_capability_not_selected():
     with pytest.raises(ValueError, match="Required capabilities were not selected"):
-        run_probes(["android.adb"], required=["maestro"])
+        run_probes(["android.adb.cli"], required=["maestro.cli"])
+
+
+def test_android_and_maestro_capabilities_are_scoped():
+    assert "android.adb.cli" in PROVIDERS
+    assert "android.adb.devices" in PROVIDERS
+    assert "maestro.cli" in PROVIDERS
+    assert "maestro.flow.contract" in PROVIDERS
+    assert "android.adb" not in PROVIDERS
+    assert "maestro" not in PROVIDERS
 
 
 def test_playwright_capability_is_cli_scoped():
