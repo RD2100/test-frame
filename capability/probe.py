@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Callable, Iterable
 
-from capability.providers import adb, allure, maestro, metersphere, miniapp, playwright
+from capability.providers import adb, allure, h5, maestro, metersphere, miniapp, playwright
 from capability.schema import CapabilityResult
 
 
@@ -20,6 +20,9 @@ PROVIDERS: dict[str, Provider] = {
     "allure": allure.probe,
     "playwright.cli": playwright.probe,
     "playwright.browser.chromium": playwright.probe_chromium,
+    "h5.staging.env": h5.probe_staging_env,
+    "h5.auth.env": h5.probe_auth_env,
+    "h5.auth.storage_state": h5.probe_auth_storage_state,
     "miniapp.devtools.path": miniapp.probe_path,
     "miniapp.devtools.cli": miniapp.probe_cli,
     "miniapp.automator.sdk": miniapp.probe_sdk,

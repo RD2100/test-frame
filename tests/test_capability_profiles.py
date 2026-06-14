@@ -28,6 +28,14 @@ METERSPHERE_TESTPLAN_CAPABILITIES = [
     "metersphere.testplan.env",
 ]
 
+H5_AUTH_STAGING_CAPABILITIES = [
+    "playwright.cli",
+    "playwright.browser.chromium",
+    "h5.staging.env",
+    "h5.auth.env",
+    "h5.auth.storage_state",
+]
+
 
 def _provider(capability: str, status: str, reason: str = "ok"):
     def run(required: bool = False) -> CapabilityResult:
@@ -52,6 +60,10 @@ def _set_miniapp_automator_providers(monkeypatch, states: dict[str, tuple[str, s
 
 def _set_metersphere_testplan_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, METERSPHERE_TESTPLAN_CAPABILITIES, states)
+
+
+def _set_h5_auth_staging_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, H5_AUTH_STAGING_CAPABILITIES, states)
 
 
 def _set_providers(monkeypatch, capabilities: list[str], states: dict[str, tuple[str, str]]):
@@ -340,4 +352,106 @@ def test_optional_metersphere_capability_all_still_allows_blocked_results(monkey
 
     assert result.exit_code == 0
     assert "[BLOCKED] metersphere.testplan.env: missing MeterSphere test plan id" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_h5_auth_staging_profile_expands_to_required_capabilities():
+    assert resolve_profile("h5.auth.staging") == H5_AUTH_STAGING_CAPABILITIES
+
+
+def test_h5_profile_blocks_when_playwright_cli_is_missing(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"playwright.cli": ("BLOCKED", "npx not found in PATH")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.staging"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] playwright.cli: npx not found in PATH" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_h5_profile_blocks_when_chromium_is_missing(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"playwright.browser.chromium": ("BLOCKED", "Chromium browser binary is not installed")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.staging"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] playwright.browser.chromium: Chromium browser binary is not installed" in result.output
+
+
+def test_h5_profile_fails_when_staging_url_is_malformed(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"h5.staging.env": ("FAILED", "H5 staging base URL is not a valid http(s) URL")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.staging"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] h5.staging.env: H5 staging base URL is not a valid http(s) URL" in result.output
+
+
+def test_h5_profile_blocks_when_auth_env_is_missing(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"h5.auth.env": ("BLOCKED", "missing H5 auth environment variables")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.staging"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] h5.auth.env: missing H5 auth environment variables" in result.output
+
+
+def test_h5_profile_blocks_when_storage_state_is_missing(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"h5.auth.storage_state": ("BLOCKED", "missing H5 auth storageState path")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.staging"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] h5.auth.storage_state: missing H5 auth storageState path" in result.output
+
+
+def test_h5_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_h5_auth_staging_providers(monkeypatch, {})
+    evidence_path = tmp_path / "h5.auth.staging.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "h5.auth.staging",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] h5.auth.staging" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == H5_AUTH_STAGING_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_h5_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_h5_auth_staging_providers(
+        monkeypatch,
+        {"h5.auth.storage_state": ("BLOCKED", "missing H5 auth storageState path")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] h5.auth.storage_state: missing H5 auth storageState path" in result.output
     assert "[OK] Capability check completed" in result.output

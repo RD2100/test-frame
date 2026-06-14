@@ -109,6 +109,14 @@ def test_metersphere_capabilities_are_scoped():
     assert "metersphere.testplan" not in PROVIDERS
 
 
+def test_h5_auth_capabilities_are_scoped():
+    assert "h5.staging.env" in PROVIDERS
+    assert "h5.auth.env" in PROVIDERS
+    assert "h5.auth.storage_state" in PROVIDERS
+    assert "h5.auth" not in PROVIDERS
+    assert "h5.staging" not in PROVIDERS
+
+
 def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):
     local_bin = tmp_path / "node_modules" / ".bin"
     local_bin.mkdir(parents=True)

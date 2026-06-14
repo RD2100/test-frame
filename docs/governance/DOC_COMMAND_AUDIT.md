@@ -57,6 +57,7 @@ python -m cli.main check --capability all --evidence artifacts/capabilities.loca
 python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
 python -m cli.main check --profile android.maestro.real --evidence artifacts/android.maestro.real.json
 python -m cli.main check --profile miniapp.automator.real --evidence artifacts/miniapp.automator.real.json
+python -m cli.main check --profile h5.auth.staging --evidence artifacts/h5.auth.staging.json
 python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
 python -m cli.main check --capability metersphere.real.auth --required metersphere.real.auth --evidence artifacts/metersphere.real.required.json
 python -m cli.main check --profile metersphere.testplan.real --evidence artifacts/metersphere.testplan.real.json
@@ -77,6 +78,22 @@ Added 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`.
 Hard rule: do not report `playwright.cli PASS` as H5 E2E PASS, and do not report Allure HTML generated unless `index.html` exists after a zero-exit generation command.
 
 Default report mode preserves evidence: Allure `BLOCKED` writes `allure-generation.json` and exits 0. Required HTML mode is stricter: `python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5 --require-html` exits non-zero for `BLOCKED` or `FAILED`.
+
+## P1 H5 Auth Staging Profile Gate Skeleton
+
+Added 2026-06-14 for `P1-H5-AUTH-STAGING-PROFILE-A1`.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `h5.staging.env` | `H5_STAGING_BASE_URL` exists and is a valid `http(s)` URL. | The staging site is reachable, healthy, authenticated, or business-ready. |
+| `h5.auth.env` | `H5_AUTH_USERNAME` and `H5_AUTH_PASSWORD` are present. | The credentials are correct or login succeeds. |
+| `h5.auth.storage_state` | `H5_AUTH_STORAGE_STATE` points to a valid Playwright storageState JSON file. | Cookies, tokens, localStorage values, or backend authorization are still valid. |
+
+| Profile | Required capabilities | What it proves when PASS | What it does not prove |
+|---|---|---|---|
+| `h5.auth.staging` | `playwright.cli`, `playwright.browser.chromium`, `h5.staging.env`, `h5.auth.env`, `h5.auth.storage_state` | Browser tooling is ready, staging URL is configured, credential env exists, and a Playwright storageState file is structurally valid. | Real site reachability, login success, credential validity, session validity, business H5 E2E, or full regression coverage. |
+
+Hard rule: `h5.auth.staging` is an explicit required profile only. It must not visit the staging site, perform login, submit credentials, or report H5 business E2E success. Evidence must omit passwords, cookies, localStorage values, and URL query values.
 
 ## P1 Android ADB / Maestro Probe Boundaries
 
@@ -157,7 +174,7 @@ Hard rule: `metersphere.testplan.real` is an explicit required profile only. It 
 | `UNSUPPORTED` | 当前平台或项目暂不支持 |
 | `NOT_REQUIRED` | 本轮 profile 未要求该能力 |
 
-当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`、`metersphere.fake.contract`、`metersphere.real.auth`、`metersphere.testplan.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接；`metersphere.fake.contract` 只证明本地 adapter contract，不证明真实平台集成；`metersphere.testplan.env` 只证明 test plan id 已配置，不证明测试计划存在或执行成功。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
+当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`h5.staging.env`、`h5.auth.env`、`h5.auth.storage_state`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`、`metersphere.fake.contract`、`metersphere.real.auth`、`metersphere.testplan.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`h5.auth.staging` 只证明显式 required 的 H5 auth/staging readiness probes 通过，不证明真实登录、站点可达或业务 E2E 已通过；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接；`metersphere.fake.contract` 只证明本地 adapter contract，不证明真实平台集成；`metersphere.testplan.env` 只证明 test plan id 已配置，不证明测试计划存在或执行成功。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
 
 后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
 

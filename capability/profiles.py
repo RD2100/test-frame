@@ -16,6 +16,13 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "miniapp.automator.sdk",
         "miniapp.automator.endpoint",
     ),
+    "h5.auth.staging": (
+        "playwright.cli",
+        "playwright.browser.chromium",
+        "h5.staging.env",
+        "h5.auth.env",
+        "h5.auth.storage_state",
+    ),
     "metersphere.testplan.real": (
         "metersphere.env",
         "metersphere.real.auth",

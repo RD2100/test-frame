@@ -215,6 +215,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-METERSPHERE-TESTPLAN-REAL-PROFILE-A1`; real test-plan execution still needs separate review.
 - **Boundary note**: profile PASS proves only the required readiness probes pass together; it does not prove test plan existence, execution, report polling, API regression success, or business API correctness.
 
+## 19. H5 Auth Staging Profile Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/env_probe/storage_state_probe | **Risk**: medium
+- **Preferred for**: explicitly requiring Playwright browser readiness, H5 staging URL env, credential env, and a structurally valid Playwright storageState file before real H5 auth/E2E work
+- **Forbidden for**: visiting production or staging sites, submitting credentials, storing passwords/cookies/localStorage values in evidence, or claiming login/business E2E success
+- **Fallback**: `h5.auth.staging` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (promoting `h5.auth.staging` or real H5 auth/E2E execution to shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile h5.auth.staging --evidence artifacts/h5.auth.staging.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-AUTH-STAGING-PROFILE-A1`; real H5 auth/login execution still needs separate review.
+- **Boundary note**: profile PASS proves only browser tooling readiness, staging URL shape, credential env presence, and storageState JSON shape; it does not prove site reachability, login success, session validity, business E2E, or full regression coverage.
+
 ---
 
 ## Summary
@@ -239,6 +251,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 16 | Android Maestro Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 17 | MiniApp Automator Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 18 | MeterSphere Test-Plan Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 19 | H5 Auth Staging Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

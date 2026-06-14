@@ -29,6 +29,26 @@ python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5 --r
 
 With `--require-html`, both `BLOCKED` and `FAILED` Allure generation states exit non-zero.
 
+## P1 H5 Auth Staging Profile Boundaries
+
+H5 auth/staging readiness is split into browser, staging URL, credential env, and storageState layers:
+
+| Capability | PASS condition | Does not prove |
+|---|---|---|
+| `playwright.cli` | The Playwright CLI/package is callable. | Browser binary availability or H5 E2E success. |
+| `playwright.browser.chromium` | Chromium can launch and close through Playwright. | Any project route or login flow passed. |
+| `h5.staging.env` | `H5_STAGING_BASE_URL` is present and is a valid `http(s)` URL. | The site is reachable, healthy, or authenticated. |
+| `h5.auth.env` | `H5_AUTH_USERNAME` and `H5_AUTH_PASSWORD` are present. | Credentials are correct or login succeeds. |
+| `h5.auth.storage_state` | `H5_AUTH_STORAGE_STATE` points to a valid Playwright storageState JSON file. | Cookies/tokens are current, authorized, or accepted by the backend. |
+
+For an explicit H5 auth/staging readiness gate skeleton, use:
+
+```powershell
+python -m cli.main check --profile h5.auth.staging --evidence artifacts\h5.auth.staging.json
+```
+
+`h5.auth.staging` requires `playwright.cli`, `playwright.browser.chromium`, `h5.staging.env`, `h5.auth.env`, and `h5.auth.storage_state` to PASS. It does not visit the staging site, perform login, or run business H5 E2E. Evidence records only URL structure, env presence, and storageState counts; it must not include passwords, cookies, localStorage values, or URL query values.
+
 ## P1 Android ADB and Maestro Probe Boundaries
 
 Android automation is split into environment layers:
