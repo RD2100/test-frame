@@ -227,6 +227,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-AUTH-STAGING-PROFILE-A1`; real H5 auth/login execution still needs separate review.
 - **Boundary note**: profile PASS proves only browser tooling readiness, staging URL shape, credential env presence, and storageState JSON shape; it does not prove site reachability, login success, session validity, business E2E, or full regression coverage.
 
+## 20. Cloud Device Matrix Contract Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/local_fake_contract/env_probe | **Risk**: medium
+- **Preferred for**: validating a local cloud-device compatibility matrix contract and readiness env before any real cloud-device provider work
+- **Forbidden for**: calling BrowserStack, Firebase Test Lab, Maestro Cloud, or any real provider; uploading APK/IPA/test packages; consuming quota; storing provider tokens/project ids in evidence; or claiming real compatibility coverage
+- **Fallback**: `cloud.device.matrix.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (real provider execution, app upload, quota-consuming runs, or shared CI promotion) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile cloud.device.matrix.real --evidence artifacts/cloud.device.matrix.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-CLOUD-DEVICE-MATRIX-CONTRACT-A1`; real cloud-device execution still needs separate review.
+- **Boundary note**: profile PASS proves only cloud-device env presence and local matrix contract validity; it does not prove provider auth, quota, upload, real device execution, compatibility coverage, or billing-safe readiness.
+
 ---
 
 ## Summary
@@ -252,6 +264,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 17 | MiniApp Automator Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 18 | MeterSphere Test-Plan Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 19 | H5 Auth Staging Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 20 | Cloud Device Matrix Contract Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

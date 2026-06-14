@@ -36,6 +36,11 @@ H5_AUTH_STAGING_CAPABILITIES = [
     "h5.auth.storage_state",
 ]
 
+CLOUD_DEVICE_MATRIX_CAPABILITIES = [
+    "cloud.device.env",
+    "cloud.device.matrix.contract",
+]
+
 
 def _provider(capability: str, status: str, reason: str = "ok"):
     def run(required: bool = False) -> CapabilityResult:
@@ -64,6 +69,10 @@ def _set_metersphere_testplan_providers(monkeypatch, states: dict[str, tuple[str
 
 def _set_h5_auth_staging_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, H5_AUTH_STAGING_CAPABILITIES, states)
+
+
+def _set_cloud_device_matrix_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, CLOUD_DEVICE_MATRIX_CAPABILITIES, states)
 
 
 def _set_providers(monkeypatch, capabilities: list[str], states: dict[str, tuple[str, str]]):
@@ -454,4 +463,82 @@ def test_optional_h5_capability_all_still_allows_blocked_results(monkeypatch):
 
     assert result.exit_code == 0
     assert "[BLOCKED] h5.auth.storage_state: missing H5 auth storageState path" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_cloud_device_matrix_real_profile_expands_to_required_capabilities():
+    assert resolve_profile("cloud.device.matrix.real") == CLOUD_DEVICE_MATRIX_CAPABILITIES
+
+
+def test_cloud_device_profile_blocks_when_env_is_missing(monkeypatch):
+    _set_cloud_device_matrix_providers(
+        monkeypatch,
+        {"cloud.device.env": ("BLOCKED", "missing cloud device environment variables")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.matrix.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] cloud.device.env: missing cloud device environment variables" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_cloud_device_profile_blocks_when_matrix_file_is_missing(monkeypatch):
+    _set_cloud_device_matrix_providers(
+        monkeypatch,
+        {"cloud.device.matrix.contract": ("BLOCKED", "missing cloud device matrix file path")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.matrix.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] cloud.device.matrix.contract: missing cloud device matrix file path" in result.output
+
+
+def test_cloud_device_profile_fails_when_matrix_contract_is_malformed(monkeypatch):
+    _set_cloud_device_matrix_providers(
+        monkeypatch,
+        {"cloud.device.matrix.contract": ("FAILED", "cloud device matrix file is not valid JSON")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.matrix.real"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] cloud.device.matrix.contract: cloud device matrix file is not valid JSON" in result.output
+
+
+def test_cloud_device_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_cloud_device_matrix_providers(monkeypatch, {})
+    evidence_path = tmp_path / "cloud.device.matrix.real.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "cloud.device.matrix.real",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] cloud.device.matrix.real" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == CLOUD_DEVICE_MATRIX_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_cloud_device_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_cloud_device_matrix_providers(
+        monkeypatch,
+        {"cloud.device.env": ("BLOCKED", "missing cloud device environment variables")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] cloud.device.env: missing cloud device environment variables" in result.output
     assert "[OK] Capability check completed" in result.output

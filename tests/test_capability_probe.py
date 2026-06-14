@@ -117,6 +117,14 @@ def test_h5_auth_capabilities_are_scoped():
     assert "h5.staging" not in PROVIDERS
 
 
+def test_cloud_device_capabilities_are_scoped():
+    assert "cloud.device.env" in PROVIDERS
+    assert "cloud.device.matrix.contract" in PROVIDERS
+    assert "cloud.device.provider.fake" in PROVIDERS
+    assert "cloud.device" not in PROVIDERS
+    assert "cloud.device.matrix" not in PROVIDERS
+
+
 def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):
     local_bin = tmp_path / "node_modules" / ".bin"
     local_bin.mkdir(parents=True)

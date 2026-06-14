@@ -49,6 +49,24 @@ python -m cli.main check --profile h5.auth.staging --evidence artifacts\h5.auth.
 
 `h5.auth.staging` requires `playwright.cli`, `playwright.browser.chromium`, `h5.staging.env`, `h5.auth.env`, and `h5.auth.storage_state` to PASS. It does not visit the staging site, perform login, or run business H5 E2E. Evidence records only URL structure, env presence, and storageState counts; it must not include passwords, cookies, localStorage values, or URL query values.
 
+## P1 Cloud Device Matrix Contract Boundaries
+
+Cloud device compatibility readiness is split into env, local matrix contract, and fake provider layers:
+
+| Capability | PASS condition | Does not prove |
+|---|---|---|
+| `cloud.device.env` | `CLOUD_DEVICE_PROVIDER`, `CLOUD_DEVICE_TOKEN`, `CLOUD_DEVICE_PROJECT_ID`, and `CLOUD_DEVICE_MATRIX_FILE` are present. | Cloud provider auth, quota, service reachability, or device availability. |
+| `cloud.device.matrix.contract` | A local matrix JSON file and fake provider response pass the contract and status mapping. | Any real cloud device job was submitted, executed, or billed. |
+| `cloud.device.provider.fake` | The built-in fake provider request/response contract passes. | A real BrowserStack/Firebase/Maestro Cloud integration exists. |
+
+For an explicit cloud-device matrix readiness gate skeleton, use:
+
+```powershell
+python -m cli.main check --profile cloud.device.matrix.real --evidence artifacts\cloud.device.matrix.real.json
+```
+
+`cloud.device.matrix.real` requires `cloud.device.env` and `cloud.device.matrix.contract` to PASS. It does not call BrowserStack, Firebase Test Lab, Maestro Cloud, or any cloud provider; it does not upload APK/IPA/test packages and must not be reported as real compatibility coverage or cloud-device execution success.
+
 ## P1 Android ADB and Maestro Probe Boundaries
 
 Android automation is split into environment layers:

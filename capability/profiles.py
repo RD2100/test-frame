@@ -23,6 +23,10 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "h5.auth.env",
         "h5.auth.storage_state",
     ),
+    "cloud.device.matrix.real": (
+        "cloud.device.env",
+        "cloud.device.matrix.contract",
+    ),
     "metersphere.testplan.real": (
         "metersphere.env",
         "metersphere.real.auth",
