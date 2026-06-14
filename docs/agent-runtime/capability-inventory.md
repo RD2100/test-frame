@@ -179,6 +179,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-METERSPHERE-ADAPTER-CONTRACT-A1`; real test-plan execution still needs separate review.
 - **Boundary note**: `metersphere.env` proves only required env presence; `metersphere.fake.contract` proves local fake response normalization; `metersphere.real.auth` is optional and proves authentication reachability only, not test execution.
 
+## 16. Android Maestro Real Profile Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile | **Risk**: medium
+- **Preferred for**: explicitly requiring adb CLI, adb device, Maestro CLI, and minimal Maestro flow contract in a real-device profile
+- **Forbidden for**: treating optional baseline Android/Maestro BLOCKED results as failures, installing Android SDK, connecting cloud devices, or claiming full Android app regression
+- **Fallback**: `android.maestro.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (promoting `android.maestro.real` to shared CI required gate) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile android.maestro.real --evidence artifacts/android.maestro.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-ANDROID-MAESTRO-REAL-PROFILE-A1`; real-device availability still needs environment-specific review.
+- **Boundary note**: profile PASS proves only the four required capability probes pass together; it does not prove a full Android app regression suite.
+
 ---
 
 ## Summary
@@ -200,6 +212,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 13 | Android ADB and Maestro Probe Layers | Both | validation | medium | approved | local_probe |
 | 14 | MiniApp DevTools and Automator Probe Layers | Both | validation | medium | approved | local_probe |
 | 15 | MeterSphere Adapter Contract and Real Auth Probe | Both | validation | medium | approved | local_probe |
+| 16 | Android Maestro Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

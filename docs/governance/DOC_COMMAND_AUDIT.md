@@ -55,6 +55,7 @@
 ```powershell
 python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
 python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
+python -m cli.main check --profile android.maestro.real --evidence artifacts/android.maestro.real.json
 python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
 python -m cli.main check --capability metersphere.real.auth --required metersphere.real.auth --evidence artifacts/metersphere.real.required.json
 ```
@@ -87,6 +88,16 @@ Added 2026-06-14 for `P1-ANDROID-ADB-MAESTRO-PROBE-A1`.
 | `maestro.flow.contract` | The minimal flow can run when CLI, device, and flow preconditions exist. | Full Android regression coverage. |
 
 Hard rule: do not report `android.adb.cli PASS` as Android device/E2E PASS, and do not report `maestro.cli PASS` as Maestro flow PASS.
+
+## P1 Android Maestro Real Profile Gate Skeleton
+
+Added 2026-06-14 for `P1-ANDROID-MAESTRO-REAL-PROFILE-A1`.
+
+| Profile | Required capabilities | What it proves when PASS | What it does not prove |
+|---|---|---|---|
+| `android.maestro.real` | `android.adb.cli`, `android.adb.devices`, `maestro.cli`, `maestro.flow.contract` | The current machine has adb, at least one device-state target, Maestro CLI, and the minimal Maestro flow can run. | Full Android app regression, login flow, cloud-device coverage, or business UI completeness. |
+
+Hard rule: `android.maestro.real` is an explicit required profile only. Baseline `--capability all` may still pass with optional Android/Maestro `BLOCKED` evidence.
 
 ## P1 MiniApp DevTools / Automator Probe Boundaries
 

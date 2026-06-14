@@ -42,6 +42,14 @@ Android automation is split into environment layers:
 
 Required device verification must use `android.adb.devices`, not `android.adb.cli`.
 
+For an explicit real-device gate skeleton, use:
+
+```powershell
+python -m cli.main check --profile android.maestro.real --evidence artifacts\android.maestro.real.json
+```
+
+`android.maestro.real` requires `android.adb.cli`, `android.adb.devices`, `maestro.cli`, and `maestro.flow.contract` to PASS. On machines without adb, a device, or Maestro, this profile must exit non-zero while baseline preflight remains allowed to pass with optional `BLOCKED` evidence.
+
 ## P1 MiniApp DevTools and Automator Probe Boundaries
 
 MiniApp automation is split into runtime layers:

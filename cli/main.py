@@ -86,20 +86,31 @@ def watch(project, build_id):
 @cli.command()
 @click.option("--project", "-p", required=False, help="项目名称")
 @click.option("--capability", "capability_name", default=None, help="Capability to probe, or 'all'")
+@click.option("--profile", "capability_profile", default=None, help="Capability profile to probe")
 @click.option("--required", multiple=True, help="Capability that must PASS")
 @click.option("--evidence", default=None, help="Write capability evidence JSON to this path")
-def check(project, capability_name, required, evidence):
+def check(project, capability_name, capability_profile, required, evidence):
     """检查配置和运行环境"""
-    if capability_name:
+    if capability_name or capability_profile:
+        from capability.profiles import resolve_profile
         from capability.probe import required_gate_failed, run_probes, write_evidence
 
         try:
-            names = [name.strip() for name in capability_name.split(",") if name.strip()]
-            results = run_probes(names, required=required)
+            names = []
+            required_names = list(required)
+            if capability_profile:
+                profile_names = resolve_profile(capability_profile)
+                names.extend(profile_names)
+                required_names.extend(profile_names)
+            if capability_name:
+                names.extend(name.strip() for name in capability_name.split(",") if name.strip())
+            results = run_probes(names, required=required_names)
         except ValueError as e:
             click.echo(f"[FAIL] {e}", err=True)
             sys.exit(1)
 
+        if capability_profile:
+            click.echo(f"[PROFILE] {capability_profile}: required {', '.join(resolve_profile(capability_profile))}")
         for result in results:
             click.echo(f"[{result.status}] {result.capability}: {result.reason}")
 
