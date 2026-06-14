@@ -16,6 +16,8 @@ aggregator/*.py
 aggregator/adapters/*.py
 evidence/*.py
 attribution/*.py
+capability/*.py
+capability/providers/*.py
 config_loader.py
 
 # TestFrame quality gates & config
@@ -40,6 +42,7 @@ tests/test_regression_report.py
 tests/test_config_loader.py
 tests/test_orchestrator_engine.py
 tests/test_aggregator_collector.py
+tests/test_capability_probe.py
 tests/fittrack/**/*.py
 tests/h5/support/**/*.js
 tests/fixtures/**/*.json

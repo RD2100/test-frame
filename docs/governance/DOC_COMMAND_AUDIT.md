@@ -48,6 +48,27 @@
 
 当前文档中“框架本体入口、配置检查、dry-run、报告/归因降级、JS/Playwright 包可用性”基本可信；“真实 Android 设备、小程序运行时、MeterSphere、Allure HTML、跨平台 Bash CI”仍属于环境依赖或外部集成能力，不能作为当前机器已通过的质量结论。
 
+## Capability Probe Matrix 入口
+
+2026-06-14 后新增统一 capability probe 入口，用于把外部能力缺失记录为可机读状态，而不是混入普通 PASS：
+
+```powershell
+python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
+python -m cli.main check --capability android.adb --required android.adb --evidence artifacts/android.required.json
+```
+
+状态语义：
+
+| 状态 | 含义 |
+|---|---|
+| `PASS` | 该能力在当前环境真实可用 |
+| `FAILED` | 工具存在，但命令执行失败 |
+| `BLOCKED` | 缺少工具、环境变量、设备或外部服务 |
+| `UNSUPPORTED` | 当前平台或项目暂不支持 |
+| `NOT_REQUIRED` | 本轮 profile 未要求该能力 |
+
+当前 probe 覆盖：`android.adb`、`maestro`、`allure`、`playwright`、`miniapp.devtools`、`metersphere.env`。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
+
 后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
 
 1. 环境探针：ADB / Maestro / WeChat DevTools / MeterSphere / Allure 的统一 `check` 输出。

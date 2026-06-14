@@ -71,9 +71,40 @@ def watch(project, build_id):
 
 
 @cli.command()
-@click.option("--project", "-p", required=True, help="项目名称")
-def check(project):
+@click.option("--project", "-p", required=False, help="项目名称")
+@click.option("--capability", "capability_name", default=None, help="Capability to probe, or 'all'")
+@click.option("--required", multiple=True, help="Capability that must PASS")
+@click.option("--evidence", default=None, help="Write capability evidence JSON to this path")
+def check(project, capability_name, required, evidence):
     """检查配置和运行环境"""
+    if capability_name:
+        from capability.probe import required_gate_failed, run_probes, write_evidence
+
+        try:
+            names = [name.strip() for name in capability_name.split(",") if name.strip()]
+            results = run_probes(names, required=required)
+        except ValueError as e:
+            click.echo(f"[FAIL] {e}", err=True)
+            sys.exit(1)
+
+        for result in results:
+            click.echo(f"[{result.status}] {result.capability}: {result.reason}")
+
+        if evidence:
+            output_path = write_evidence(results, evidence)
+            click.echo(f"[OK] Capability evidence written: {output_path}")
+
+        if required_gate_failed(results):
+            click.echo("[FAIL] Required capability check failed", err=True)
+            sys.exit(1)
+
+        click.echo("[OK] Capability check completed")
+        return
+
+    if not project:
+        click.echo("[FAIL] --project is required unless --capability is provided", err=True)
+        sys.exit(1)
+
     from config_loader import load_config, validate_config
 
     try:

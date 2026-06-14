@@ -119,6 +119,17 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 
 <!-- Add project-specific capabilities (#11+) below. Set Status: proposed. Reviewer changes to approved. -->
 
+## 11. TestFrame Capability Probe Matrix
+- **Platform**: Both
+- **Type**: validation | **Access**: local_command_probe | **Risk**: medium
+- **Preferred for**: recording whether local external test tools are PASS, FAILED, BLOCKED, UNSUPPORTED, or NOT_REQUIRED
+- **Forbidden for**: treating missing tools, missing credentials, or missing devices as PASS
+- **Fallback**: documented manual command audit in `docs/governance/DOC_COMMAND_AUDIT.md`
+- **Human gate**: yes (making a capability required in CI) | **Must explain if skipped**: yes
+- **Evidence**: `artifacts/capabilities.local.json` or equivalent `--evidence` output
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14; making optional probes required in CI still needs a separate human gate.
+
 ---
 
 ## Summary
@@ -135,6 +146,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 8 | Reviewer Playbooks | Both | review | low | approved | reference |
 | 9 | Hooks (Draft) | Claude | hook | medium | approved | audit-only |
 | 10 | Phase 6 SourceLock | Both | source_lock | critical | approved | design_only |
+| 11 | TestFrame Capability Probe Matrix | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

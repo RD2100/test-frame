@@ -39,6 +39,7 @@ node_modules/
 allure-results/
 allure-report/
 test-results/
+artifacts/
 
 # 敏感配置（模板保留，实际覆盖放这里）
 config/tools/*.local.yaml
