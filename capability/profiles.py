@@ -16,6 +16,11 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "miniapp.automator.sdk",
         "miniapp.automator.endpoint",
     ),
+    "metersphere.testplan.real": (
+        "metersphere.env",
+        "metersphere.real.auth",
+        "metersphere.testplan.env",
+    ),
 }
 
 

@@ -27,6 +27,7 @@ PROVIDERS: dict[str, Provider] = {
     "metersphere.env": metersphere.probe_env,
     "metersphere.fake.contract": metersphere.probe_fake_contract,
     "metersphere.real.auth": metersphere.probe_real_auth,
+    "metersphere.testplan.env": metersphere.probe_testplan_env,
 }
 
 

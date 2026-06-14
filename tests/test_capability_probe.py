@@ -103,8 +103,10 @@ def test_metersphere_capabilities_are_scoped():
     assert "metersphere.env" in PROVIDERS
     assert "metersphere.fake.contract" in PROVIDERS
     assert "metersphere.real.auth" in PROVIDERS
+    assert "metersphere.testplan.env" in PROVIDERS
     assert "metersphere.real" not in PROVIDERS
     assert "metersphere.platform" not in PROVIDERS
+    assert "metersphere.testplan" not in PROVIDERS
 
 
 def test_allure_probe_uses_repo_local_cli_when_path_is_missing(monkeypatch, tmp_path):

@@ -203,6 +203,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-MINIAPP-AUTOMATOR-REAL-PROFILE-A1`; real endpoint availability still needs environment-specific review.
 - **Boundary note**: profile PASS proves only the four required capability probes pass together; it does not prove full MiniApp UI E2E, login, route coverage, selector assertions, or production service readiness.
 
+## 18. MeterSphere Test-Plan Real Profile Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/env_probe/optional_network_auth | **Risk**: medium
+- **Preferred for**: explicitly requiring MeterSphere env readiness, opt-in real auth readiness, and test plan id presence before any real test-plan execution work
+- **Forbidden for**: calling a real test-plan API, triggering a real test run, storing tokens/project ids/test plan ids in evidence, or claiming API regression success
+- **Fallback**: `metersphere.testplan.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (promoting `metersphere.testplan.real` or real test-plan execution to shared CI) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile metersphere.testplan.real --evidence artifacts/metersphere.testplan.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-METERSPHERE-TESTPLAN-REAL-PROFILE-A1`; real test-plan execution still needs separate review.
+- **Boundary note**: profile PASS proves only the required readiness probes pass together; it does not prove test plan existence, execution, report polling, API regression success, or business API correctness.
+
 ---
 
 ## Summary
@@ -226,6 +238,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 15 | MeterSphere Adapter Contract and Real Auth Probe | Both | validation | medium | approved | local_probe |
 | 16 | Android Maestro Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 17 | MiniApp Automator Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 18 | MeterSphere Test-Plan Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

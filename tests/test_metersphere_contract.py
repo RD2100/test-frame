@@ -12,6 +12,7 @@ def _clear_metersphere_env(monkeypatch):
         "METERSPHERE_TOKEN",
         "METERSPHERE_PROJECT_ID",
         "METERSPHERE_REAL_AUTH",
+        "METERSPHERE_TEST_PLAN_ID",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -20,6 +21,10 @@ def _set_metersphere_env(monkeypatch):
     monkeypatch.setenv("METERSPHERE_BASE_URL", "https://metersphere.local")
     monkeypatch.setenv("METERSPHERE_TOKEN", "secret-token-123")
     monkeypatch.setenv("METERSPHERE_PROJECT_ID", "project-1")
+
+
+def _set_metersphere_test_plan_env(monkeypatch):
+    monkeypatch.setenv("METERSPHERE_TEST_PLAN_ID", "plan-secret-1")
 
 
 class FakeResponse:
@@ -135,6 +140,7 @@ def test_metersphere_real_auth_blocks_when_service_is_unreachable(monkeypatch):
     assert result.status == "BLOCKED"
     assert result.reason == "MeterSphere service is unreachable"
     assert "secret-token-123" not in payload
+    assert "project-1" not in payload
 
 
 def test_metersphere_real_auth_failed_for_http_401(monkeypatch):
@@ -164,6 +170,34 @@ def test_metersphere_real_auth_passes_for_http_200_json_object(monkeypatch):
     assert result.status == "PASS"
     assert result.required is True
     assert result.evidence["response_keys"] == ["id"]
+    payload = json.dumps(result.to_dict())
+    assert "secret-token-123" not in payload
+    assert "project-1" not in payload
+
+
+def test_metersphere_testplan_env_blocks_when_plan_id_is_missing(monkeypatch):
+    _clear_metersphere_env(monkeypatch)
+
+    result = metersphere.probe_testplan_env()
+
+    assert result.status == "BLOCKED"
+    assert result.reason == "missing MeterSphere test plan id"
+    assert result.evidence["env_status"] == [
+        {"name": "METERSPHERE_TEST_PLAN_ID", "provided": False}
+    ]
+
+
+def test_metersphere_testplan_env_passes_without_leaking_plan_id(monkeypatch):
+    _clear_metersphere_env(monkeypatch)
+    _set_metersphere_test_plan_env(monkeypatch)
+
+    result = metersphere.probe_testplan_env(required=True)
+    payload = json.dumps(result.to_dict())
+
+    assert result.status == "PASS"
+    assert result.required is True
+    assert result.evidence["provided_count"] == 1
+    assert "plan-secret-1" not in payload
 
 
 def test_required_fake_contract_failure_blocks_gate(monkeypatch):
@@ -179,6 +213,15 @@ def test_required_real_auth_missing_env_blocks_gate(monkeypatch):
     _clear_metersphere_env(monkeypatch)
 
     results = run_probes(["metersphere.real.auth"], required=["metersphere.real.auth"])
+
+    assert results[0].status == "BLOCKED"
+    assert required_gate_failed(results) is True
+
+
+def test_required_testplan_env_missing_plan_id_blocks_gate(monkeypatch):
+    _clear_metersphere_env(monkeypatch)
+
+    results = run_probes(["metersphere.testplan.env"], required=["metersphere.testplan.env"])
 
     assert results[0].status == "BLOCKED"
     assert required_gate_failed(results) is True

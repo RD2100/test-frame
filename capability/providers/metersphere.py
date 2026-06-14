@@ -8,11 +8,12 @@ from typing import Any
 import requests
 
 from aggregator.adapters import metersphere_adapter
-from capability.schema import CapabilityResult
+from capability.schema import CapabilityResult, REDACTION
 
 
 REQUIRED_ENV = ("METERSPHERE_BASE_URL", "METERSPHERE_TOKEN", "METERSPHERE_PROJECT_ID")
 REAL_AUTH_ENABLE_ENV = "METERSPHERE_REAL_AUTH"
+TEST_PLAN_ID_ENV = "METERSPHERE_TEST_PLAN_ID"
 
 FAKE_REPORT_PAYLOAD: dict[str, Any] = {
     "data": {
@@ -49,6 +50,31 @@ def _env_evidence(values: dict[str, str], missing: list[str]) -> dict:
     }
 
 
+def _testplan_env_evidence(provided: bool) -> dict:
+    return {
+        "env_status": [{"name": TEST_PLAN_ID_ENV, "provided": provided}],
+        "missing_count": 0 if provided else 1,
+        "provided_count": 1 if provided else 0,
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "" if provided else "environment variable missing",
+    }
+
+
+def _auth_request_evidence(url: str, status_code: int | None, stderr: str = "") -> dict:
+    return {
+        "url": url,
+        "headers": {
+            "Authorization": REDACTION,
+            "X-Project-Id": REDACTION,
+        },
+        "status_code": status_code,
+        "exit_code": status_code,
+        "stdout": "",
+        "stderr": stderr,
+    }
+
+
 def _blocked(capability: str, required: bool, reason: str, evidence: dict) -> CapabilityResult:
     return CapabilityResult(
         capability=capability,
@@ -75,6 +101,25 @@ def probe_env(required: bool = False) -> CapabilityResult:
         required=required,
         reason="required MeterSphere environment variables are present",
         evidence=_env_evidence(values, missing),
+    )
+
+
+def probe_testplan_env(required: bool = False) -> CapabilityResult:
+    provided = bool((os.environ.get(TEST_PLAN_ID_ENV) or "").strip())
+    if not provided:
+        return _blocked(
+            "metersphere.testplan.env",
+            required,
+            "missing MeterSphere test plan id",
+            _testplan_env_evidence(False),
+        )
+
+    return CapabilityResult(
+        capability="metersphere.testplan.env",
+        status="PASS",
+        required=required,
+        reason="MeterSphere test plan id is present",
+        evidence=_testplan_env_evidence(True),
     )
 
 
@@ -162,23 +207,10 @@ def probe_real_auth(required: bool = False) -> CapabilityResult:
             "metersphere.real.auth",
             required,
             "MeterSphere service is unreachable",
-            {
-                "url": url,
-                "headers": headers,
-                "exit_code": None,
-                "stdout": "",
-                "stderr": str(exc),
-            },
+            _auth_request_evidence(url, None, str(exc)),
         )
 
-    evidence = {
-        "url": url,
-        "headers": headers,
-        "status_code": response.status_code,
-        "exit_code": response.status_code,
-        "stdout": "",
-        "stderr": "",
-    }
+    evidence = _auth_request_evidence(url, response.status_code)
     if response.status_code == 200:
         try:
             payload = response.json()

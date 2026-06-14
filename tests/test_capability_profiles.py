@@ -22,6 +22,12 @@ MINIAPP_AUTOMATOR_CAPABILITIES = [
     "miniapp.automator.endpoint",
 ]
 
+METERSPHERE_TESTPLAN_CAPABILITIES = [
+    "metersphere.env",
+    "metersphere.real.auth",
+    "metersphere.testplan.env",
+]
+
 
 def _provider(capability: str, status: str, reason: str = "ok"):
     def run(required: bool = False) -> CapabilityResult:
@@ -42,6 +48,10 @@ def _set_android_maestro_providers(monkeypatch, states: dict[str, tuple[str, str
 
 def _set_miniapp_automator_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, MINIAPP_AUTOMATOR_CAPABILITIES, states)
+
+
+def _set_metersphere_testplan_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, METERSPHERE_TESTPLAN_CAPABILITIES, states)
 
 
 def _set_providers(monkeypatch, capabilities: list[str], states: dict[str, tuple[str, str]]):
@@ -252,4 +262,82 @@ def test_optional_miniapp_capability_all_still_allows_blocked_results(monkeypatc
 
     assert result.exit_code == 0
     assert "[BLOCKED] miniapp.automator.endpoint: MINIAPP_AUTOMATOR_ENDPOINT is not set" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_metersphere_testplan_real_profile_expands_to_required_capabilities():
+    assert resolve_profile("metersphere.testplan.real") == METERSPHERE_TESTPLAN_CAPABILITIES
+
+
+def test_metersphere_profile_blocks_when_env_is_missing(monkeypatch):
+    _set_metersphere_testplan_providers(
+        monkeypatch,
+        {"metersphere.env": ("BLOCKED", "missing MeterSphere environment variables")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "metersphere.testplan.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] metersphere.env: missing MeterSphere environment variables" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_metersphere_profile_blocks_when_real_auth_is_not_enabled(monkeypatch):
+    _set_metersphere_testplan_providers(
+        monkeypatch,
+        {"metersphere.real.auth": ("BLOCKED", "real MeterSphere auth probe is not enabled")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "metersphere.testplan.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] metersphere.real.auth: real MeterSphere auth probe is not enabled" in result.output
+
+
+def test_metersphere_profile_blocks_when_test_plan_id_is_missing(monkeypatch):
+    _set_metersphere_testplan_providers(
+        monkeypatch,
+        {"metersphere.testplan.env": ("BLOCKED", "missing MeterSphere test plan id")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "metersphere.testplan.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] metersphere.testplan.env: missing MeterSphere test plan id" in result.output
+
+
+def test_metersphere_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_metersphere_testplan_providers(monkeypatch, {})
+    evidence_path = tmp_path / "metersphere.testplan.real.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "metersphere.testplan.real",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] metersphere.testplan.real" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == METERSPHERE_TESTPLAN_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_metersphere_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_metersphere_testplan_providers(
+        monkeypatch,
+        {"metersphere.testplan.env": ("BLOCKED", "missing MeterSphere test plan id")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] metersphere.testplan.env: missing MeterSphere test plan id" in result.output
     assert "[OK] Capability check completed" in result.output

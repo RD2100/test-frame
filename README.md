@@ -80,8 +80,17 @@ MeterSphere integration is split into environment, fake contract, and real auth 
 | `metersphere.env` | Required env vars are present. | Real service authentication. |
 | `metersphere.fake.contract` | Local fake MeterSphere report payload normalizes through the adapter contract. | A real MeterSphere instance is reachable. |
 | `metersphere.real.auth` | Explicit real-auth profile reaches MeterSphere and receives valid auth JSON. | Test plan execution or API regression success. |
+| `metersphere.testplan.env` | `METERSPHERE_TEST_PLAN_ID` is present. | The test plan exists, can run, or has results. |
 
 Fake contract PASS must not be reported as real MeterSphere platform integration PASS.
+
+For an explicit MeterSphere test-plan readiness gate skeleton, use:
+
+```powershell
+python -m cli.main check --profile metersphere.testplan.real --evidence artifacts\metersphere.testplan.real.json
+```
+
+`metersphere.testplan.real` requires `metersphere.env`, `metersphere.real.auth`, and `metersphere.testplan.env` to PASS. It does not execute a test plan. Profile PASS proves only environment, explicit real-auth readiness, and test plan id presence; it must not be reported as API regression or real test-plan execution success.
 
 ## 解决什么问题
 
