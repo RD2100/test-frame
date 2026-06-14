@@ -129,6 +129,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Evidence**: `artifacts/capabilities.local.json` or equivalent `--evidence` output
 - **Status**: approved
 - **Approval note**: enabled under user authorization on 2026-06-14; making optional probes required in CI still needs a separate human gate.
+- **Approval scope**: probe framework only; individual external capabilities are not approved as real execution gates until their own required profile and evidence are reviewed.
 
 ---
 

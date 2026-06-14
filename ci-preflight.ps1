@@ -33,7 +33,7 @@ Write-Host "[4/4] Capability Probe..."
 $capabilityEvidence = Join-Path $ProjectRoot "artifacts\capabilities.local.json"
 Push-Location $ProjectRoot
 try { & python -m cli.main check --capability all --evidence $capabilityEvidence 2>&1 } finally { Pop-Location }
-if ($LASTEXITCODE -ne 0) { $errors++; Write-Host "  FAILED" } else { Write-Host "  PASS" }
+if ($LASTEXITCODE -ne 0) { $errors++; Write-Host "  FAILED" } else { Write-Host "  PASS - capability probe completed; optional BLOCKED capabilities recorded" }
 Write-Host ""
 
 if ($errors -gt 0) { Write-Host "=== $errors check(s) FAILED ==="; exit 1 }

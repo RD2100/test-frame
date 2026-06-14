@@ -16,8 +16,8 @@ PROVIDERS: dict[str, Provider] = {
     "android.adb": adb.probe,
     "maestro": maestro.probe,
     "allure": allure.probe,
-    "playwright": playwright.probe,
-    "miniapp.devtools": miniapp.probe,
+    "playwright.cli": playwright.probe,
+    "miniapp.devtools.path": miniapp.probe,
     "metersphere.env": metersphere.probe,
 }
 
@@ -40,6 +40,15 @@ def resolve_names(names: Iterable[str] | None) -> list[str]:
 def run_probes(names: Iterable[str] | None = None, required: Iterable[str] | None = None) -> list[CapabilityResult]:
     required_set = set(required or [])
     resolved = resolve_names(names)
+    unknown_required = sorted(required_set - set(PROVIDERS))
+    if unknown_required:
+        raise ValueError(f"Unknown required capability: {', '.join(unknown_required)}")
+    missing_required = sorted(required_set - set(resolved))
+    if missing_required:
+        raise ValueError(
+            "Required capabilities were not selected by --capability: "
+            + ", ".join(missing_required)
+        )
     return [PROVIDERS[name](name in required_set) for name in resolved]
 
 

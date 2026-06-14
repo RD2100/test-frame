@@ -12,7 +12,7 @@ def probe(required: bool = False) -> CapabilityResult:
     cli_path = os.environ.get("WECHAT_DEVTOOL_PATH", "").strip()
     if not cli_path:
         return CapabilityResult(
-            capability="miniapp.devtools",
+            capability="miniapp.devtools.path",
             status="BLOCKED",
             required=required,
             reason="WECHAT_DEVTOOL_PATH is not set",
@@ -26,7 +26,7 @@ def probe(required: bool = False) -> CapabilityResult:
 
     exists = Path(cli_path).exists()
     return CapabilityResult(
-        capability="miniapp.devtools",
+        capability="miniapp.devtools.path",
         status="PASS" if exists else "BLOCKED",
         required=required,
         reason="WeChat DevTools CLI path exists" if exists else "WECHAT_DEVTOOL_PATH does not point to an existing file",
