@@ -56,6 +56,7 @@
 python -m cli.main check --capability all --evidence artifacts/capabilities.local.json
 python -m cli.main check --capability android.adb.devices --required android.adb.devices --evidence artifacts/android.required.json
 python -m cli.main check --profile android.maestro.real --evidence artifacts/android.maestro.real.json
+python -m cli.main check --profile miniapp.automator.real --evidence artifacts/miniapp.automator.real.json
 python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
 python -m cli.main check --capability metersphere.real.auth --required metersphere.real.auth --evidence artifacts/metersphere.real.required.json
 ```
@@ -111,6 +112,16 @@ Added 2026-06-14 for `P1-MINIAPP-DEVTOOLS-AUTOMATOR-PROBE-A1`.
 | `miniapp.automator.endpoint` | The configured `MINIAPP_AUTOMATOR_ENDPOINT` can complete the runtime probe handshake. | Full route coverage, selector assertions, login, or business E2E success. |
 
 Hard rule: do not report `miniapp.devtools.path PASS` or `miniapp.automator.sdk PASS` as MiniApp automation PASS, and do not report `miniapp.automator.endpoint PASS` as full MiniApp UI E2E PASS.
+
+## P1 MiniApp Automator Real Profile Gate Skeleton
+
+Added 2026-06-14 for `P1-MINIAPP-AUTOMATOR-REAL-PROFILE-A1`.
+
+| Profile | Required capabilities | What it proves when PASS | What it does not prove |
+|---|---|---|---|
+| `miniapp.automator.real` | `miniapp.devtools.path`, `miniapp.devtools.cli`, `miniapp.automator.sdk`, `miniapp.automator.endpoint` | The current machine has configured WeChat DevTools path/CLI, can resolve the automator package, and can complete the configured endpoint runtime handshake. | Full MiniApp UI E2E, login, AppID validity, route coverage, selector assertions, or production service readiness. |
+
+Hard rule: `miniapp.automator.real` is an explicit required profile only. Baseline `--capability all` may still pass with optional MiniApp `BLOCKED` evidence.
 
 ## P1 MeterSphere Adapter Contract Boundaries
 

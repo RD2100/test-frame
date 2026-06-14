@@ -63,6 +63,14 @@ MiniApp automation is split into runtime layers:
 
 Required runtime verification must use `miniapp.automator.endpoint`, not `miniapp.devtools.path` or `miniapp.automator.sdk`.
 
+For an explicit MiniApp automator endpoint gate skeleton, use:
+
+```powershell
+python -m cli.main check --profile miniapp.automator.real --evidence artifacts\miniapp.automator.real.json
+```
+
+`miniapp.automator.real` requires `miniapp.devtools.path`, `miniapp.devtools.cli`, `miniapp.automator.sdk`, and `miniapp.automator.endpoint` to PASS. On machines without WeChat DevTools, the automator package, or a configured endpoint, this profile must exit non-zero while baseline preflight remains allowed to pass with optional `BLOCKED` evidence. Profile PASS proves only the required probe chain, not full MiniApp UI E2E coverage.
+
 ## P1 MeterSphere Adapter Contract Boundaries
 
 MeterSphere integration is split into environment, fake contract, and real auth layers:

@@ -191,6 +191,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-ANDROID-MAESTRO-REAL-PROFILE-A1`; real-device availability still needs environment-specific review.
 - **Boundary note**: profile PASS proves only the four required capability probes pass together; it does not prove a full Android app regression suite.
 
+## 17. MiniApp Automator Real Profile Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile | **Risk**: medium
+- **Preferred for**: explicitly requiring WeChat DevTools path, DevTools CLI, automator SDK resolution, and automator endpoint handshake in a MiniApp runtime profile
+- **Forbidden for**: treating optional baseline MiniApp `BLOCKED` results as failures, requiring real WeChat login/AppID/project in baseline, or claiming full MiniApp UI E2E coverage
+- **Fallback**: `miniapp.automator.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (promoting `miniapp.automator.real` to shared CI required gate) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile miniapp.automator.real --evidence artifacts/miniapp.automator.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-MINIAPP-AUTOMATOR-REAL-PROFILE-A1`; real endpoint availability still needs environment-specific review.
+- **Boundary note**: profile PASS proves only the four required capability probes pass together; it does not prove full MiniApp UI E2E, login, route coverage, selector assertions, or production service readiness.
+
 ---
 
 ## Summary
@@ -213,6 +225,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 14 | MiniApp DevTools and Automator Probe Layers | Both | validation | medium | approved | local_probe |
 | 15 | MeterSphere Adapter Contract and Real Auth Probe | Both | validation | medium | approved | local_probe |
 | 16 | Android Maestro Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 17 | MiniApp Automator Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

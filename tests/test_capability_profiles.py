@@ -15,6 +15,13 @@ ANDROID_MAESTRO_CAPABILITIES = [
     "maestro.flow.contract",
 ]
 
+MINIAPP_AUTOMATOR_CAPABILITIES = [
+    "miniapp.devtools.path",
+    "miniapp.devtools.cli",
+    "miniapp.automator.sdk",
+    "miniapp.automator.endpoint",
+]
+
 
 def _provider(capability: str, status: str, reason: str = "ok"):
     def run(required: bool = False) -> CapabilityResult:
@@ -30,12 +37,20 @@ def _provider(capability: str, status: str, reason: str = "ok"):
 
 
 def _set_android_maestro_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, ANDROID_MAESTRO_CAPABILITIES, states)
+
+
+def _set_miniapp_automator_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, MINIAPP_AUTOMATOR_CAPABILITIES, states)
+
+
+def _set_providers(monkeypatch, capabilities: list[str], states: dict[str, tuple[str, str]]):
     monkeypatch.setattr(
         probe_module,
         "PROVIDERS",
         {
             capability: _provider(capability, *states.get(capability, ("PASS", "ok")))
-            for capability in ANDROID_MAESTRO_CAPABILITIES
+            for capability in capabilities
         },
     )
 
@@ -135,4 +150,106 @@ def test_optional_capability_all_still_allows_blocked_results(monkeypatch):
 
     assert result.exit_code == 0
     assert "[BLOCKED] optional.blocked: not installed" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_miniapp_automator_real_profile_expands_to_required_capabilities():
+    assert resolve_profile("miniapp.automator.real") == MINIAPP_AUTOMATOR_CAPABILITIES
+
+
+def test_miniapp_profile_blocks_when_devtools_path_is_missing(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.devtools.path": ("BLOCKED", "WeChat DevTools path env is not set")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "miniapp.automator.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] miniapp.devtools.path: WeChat DevTools path env is not set" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_miniapp_profile_blocks_when_devtools_cli_is_missing(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.devtools.cli": ("BLOCKED", "WeChat DevTools CLI/path env is not set")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "miniapp.automator.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] miniapp.devtools.cli: WeChat DevTools CLI/path env is not set" in result.output
+
+
+def test_miniapp_profile_blocks_when_automator_sdk_is_missing(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.automator.sdk": ("BLOCKED", "miniprogram automator package could not be resolved")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "miniapp.automator.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] miniapp.automator.sdk: miniprogram automator package could not be resolved" in result.output
+
+
+def test_miniapp_profile_blocks_when_automator_endpoint_is_missing(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.automator.endpoint": ("BLOCKED", "MINIAPP_AUTOMATOR_ENDPOINT is not set")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "miniapp.automator.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] miniapp.automator.endpoint: MINIAPP_AUTOMATOR_ENDPOINT is not set" in result.output
+
+
+def test_miniapp_profile_fails_when_automator_endpoint_fails(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.automator.endpoint": ("FAILED", "unexpected protocol response")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "miniapp.automator.real"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] miniapp.automator.endpoint: unexpected protocol response" in result.output
+
+
+def test_miniapp_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_miniapp_automator_providers(monkeypatch, {})
+    evidence_path = tmp_path / "miniapp.automator.real.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "miniapp.automator.real",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] miniapp.automator.real" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == MINIAPP_AUTOMATOR_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_miniapp_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_miniapp_automator_providers(
+        monkeypatch,
+        {"miniapp.automator.endpoint": ("BLOCKED", "MINIAPP_AUTOMATOR_ENDPOINT is not set")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] miniapp.automator.endpoint: MINIAPP_AUTOMATOR_ENDPOINT is not set" in result.output
     assert "[OK] Capability check completed" in result.output

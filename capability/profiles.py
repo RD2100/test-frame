@@ -10,6 +10,12 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "maestro.cli",
         "maestro.flow.contract",
     ),
+    "miniapp.automator.real": (
+        "miniapp.devtools.path",
+        "miniapp.devtools.cli",
+        "miniapp.automator.sdk",
+        "miniapp.automator.endpoint",
+    ),
 }
 
 
