@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-038",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P2",
+  "scenario": "A redacted reviewer pack contains only prose summaries and omits the manifest, hash, and verification-boundary fields needed for review.",
+  "input_report_features": "The pack has task_summary and issue_summary, but no evidence_pack_hash, no manifest_hash, no files[].sha256, no redaction gate result, and no explicit statement that test-frame produces verification evidence only. The report asks the reviewer to infer completeness from the prose summary.",
+  "expected_gate_decision": "warning",
+  "expected_findings": [
+    "Reviewer pack is not self-contained enough for evidence review",
+    "Missing hash and manifest fields for artifact integrity",
+    "Missing explicit test-frame boundary: verification evidence only, no final acceptance",
+    "Prose summary cannot replace structured manifest evidence"
+  ],
+  "related_invariant": "integration-contracts:EvidenceManifest, review-004, paper:redacted-reviewer-pack",
+  "hard_stop": false,
+  "canary_tags": [
+    "missing-hash-manifest",
+    "summary-only-pack",
+    "verification-boundary"
+  ],
+  "contract_surface": [
+    "EvidenceManifest",
+    "ReviewerEvidencePack",
+    "ExecutionReport"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

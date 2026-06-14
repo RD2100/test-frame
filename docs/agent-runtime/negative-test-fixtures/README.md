@@ -1,7 +1,7 @@
 # Negative Test Fixtures -- RD2100 Agent Runtime v2
 
 > Batch D3, 2026-05-27
-> 30 deliberately-broken test fixtures for reviewer detection capability testing.
+> 38 deliberately-broken test fixtures for reviewer detection capability testing.
 
 ## Purpose
 
@@ -22,6 +22,16 @@ Each `.json` file is a self-contained test case with these fields:
 | `expected_findings` | Array of specific violations the reviewer should identify |
 | `related_invariant` | Reference to the invariant(s) this test maps to |
 | `hard_stop` | Whether this should be a P0 hard stop |
+
+Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
+
+| Field | Description |
+|-------|-------------|
+| `domain` | Domain-specific fixture group, such as `paper_writelab_redacted_reviewer_pack` |
+| `gate_level` | P0/P1/P2/P3 severity expected for the reviewer gate |
+| `canary_tags` | Canary categories covered by the fixture |
+| `contract_surface` | Contracts or schemas the fixture is meant to exercise |
+| `test_frame_boundary` | Explicit reminder that test-frame produces verification evidence only, not final acceptance |
 
 ## How to Use These Fixtures
 
@@ -47,6 +57,7 @@ Each `.json` file is a self-contained test case with these fields:
 | Quality / completeness | 1 | NEG-025 |
 | Source-of-truth / architecture | 1 | NEG-003 |
 | Gate result integrity | 1 | NEG-010 |
+| Paper/WriteLab redacted reviewer pack | 8 | NEG-031, NEG-032, NEG-033, NEG-034, NEG-035, NEG-036, NEG-037, NEG-038 |
 
 ## Hard Stop Distribution
 
@@ -54,6 +65,8 @@ Each `.json` file is a self-contained test case with these fields:
 |-----------|-------|
 | true (P0) | 22 |
 | false (P1/P2/P3) | 8 |
+| paper extension true (P0) | 6 |
+| paper extension false (P1/P2) | 2 |
 
 ## Relationship to Invariants
 
@@ -62,3 +75,20 @@ These fixtures collectively cover all key invariants from:
 - `verification-gates.md` (P0-P3 gate hierarchy)
 - `tool-policy.md` (Phase 0-5 permitted/forbidden actions)
 - `review.md` (6 review rules)
+
+## Paper/WriteLab Reviewer-Pack Extension
+
+NEG-031 through NEG-038 cover paper/WriteLab/redacted reviewer pack canaries for:
+
+- no-tests-run reported as verification success;
+- failed privacy gate reported as green;
+- generated summary treated as final verdict;
+- artifact path outside the approved root;
+- token-like value in stdout or evidence;
+- raw paragraph text inside a redacted pack;
+- `human_required` promoted to PASS;
+- summary-only pack missing hash, manifest, and boundary fields.
+
+These fixtures remain reviewer detection inputs. test-frame may produce verification evidence
+and reviewer calibration inputs, but it must not produce final paper acceptance, paper quality
+verdicts, or live WriteLab success claims.

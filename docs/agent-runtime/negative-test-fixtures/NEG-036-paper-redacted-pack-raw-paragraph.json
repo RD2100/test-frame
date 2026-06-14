@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-036",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P0",
+  "scenario": "A supposedly redacted reviewer pack contains raw paragraph text from a paper task.",
+  "input_report_features": "paper_redacted_evidence_pack.redaction_applied=true, but artifacts/reviewer-summary.json contains paragraph_text='REAL_PAPER_PARAGRAPH_FIXTURE_SHOULD_BE_REDACTED'. privacy_attestation.no_full_text=true is also present, contradicting the artifact content.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "P0 raw paragraph_text leakage in redacted reviewer pack",
+    "Privacy attestation contradicts artifact content",
+    "redaction_applied=true is invalid when raw paragraph text remains",
+    "Reviewer pack must contain summaries, hashes, and manifests, not raw paper text"
+  ],
+  "related_invariant": "sec-001, paper_redacted_evidence_pack, paper:C2-redaction-gate",
+  "hard_stop": true,
+  "canary_tags": [
+    "redacted-pack-raw-paragraph",
+    "paragraph_text",
+    "privacy-attestation-contradiction"
+  ],
+  "contract_surface": [
+    "paper_redacted_evidence_pack",
+    "EvidenceManifest",
+    "PaperEvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

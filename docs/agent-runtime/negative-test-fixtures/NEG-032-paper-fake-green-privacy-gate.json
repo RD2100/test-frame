@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-032",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P0",
+  "scenario": "A failed paper privacy gate is reported as green for a redacted reviewer pack.",
+  "input_report_features": "GateResult for paper_privacy_gate has result='fail' because the redaction scan found sensitive fields, but ExecutionReport.status='accepted' and summary says 'all paper privacy gates green'. The report hides the failed GateResult behind a successful reviewer-pack summary.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "review-001 Fake Green: failed paper privacy gate reported as PASS",
+    "P0 privacy gate failure must block reviewer-pack promotion",
+    "Contradictory evidence between GateResult and ExecutionReport summary",
+    "Generated summary is evidence input only and cannot override failed gates"
+  ],
+  "related_invariant": "review-001, verification-gates:P0:privacy, paper:redacted-reviewer-pack",
+  "hard_stop": true,
+  "canary_tags": [
+    "fake-green",
+    "privacy-gate-failed",
+    "summary-overclaim"
+  ],
+  "contract_surface": [
+    "GateResult",
+    "ExecutionReport",
+    "EvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

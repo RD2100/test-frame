@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-035",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P0",
+  "scenario": "A WriteLab token-like value appears in stdout or evidence for a redacted reviewer pack.",
+  "input_report_features": "RunSpec.stdout excerpt contains 'writelab_token=FAKE_WRITELAB_TOKEN_DO_NOT_USE' and EvidenceManifest.artifacts includes stdout.log with notes='safe'. The report says secrets were redacted, but the token-like value remains visible in stdout and evidence notes.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "P0 secret/token leakage in stdout or evidence",
+    "Redaction claim contradicted by visible writelab_token value",
+    "EvidenceManifest must not index unredacted token-bearing artifacts as safe",
+    "WriteLab credentials must not appear in reports, logs, or reviewer packs"
+  ],
+  "related_invariant": "sec-001, verification-gates:P0:secrets, paper:writelab-token",
+  "hard_stop": true,
+  "canary_tags": [
+    "secret-token-stdout",
+    "writelab-token",
+    "redacted-pack"
+  ],
+  "contract_surface": [
+    "RunSpec",
+    "EvidenceManifest",
+    "ExecutionReport"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

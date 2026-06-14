@@ -1,0 +1,36 @@
+{
+  "test_id": "NEG-034",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P0",
+  "scenario": "The redacted reviewer pack indexes an artifact outside the approved project root.",
+  "input_report_features": "EvidenceManifest.artifacts includes path='D:\\\\private-paper-drafts\\\\raw-manuscript.txt' and zip_review.unexpected_entries=[] even though the path is outside the approved root. ExecutionReport.summary says the artifact was reviewed and safe.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "Evidence artifact path is outside the approved project root",
+    "Artifact outside root cannot support current verification evidence",
+    "Potential raw manuscript exposure through out-of-root evidence path",
+    "Summary must not mark out-of-scope artifacts as safe"
+  ],
+  "related_invariant": "core-005, integration-contracts:EvidenceIndex, verification-gates:P0:scope",
+  "hard_stop": true,
+  "canary_tags": [
+    "artifact-outside-root",
+    "scope-control",
+    "redacted-pack"
+  ],
+  "contract_surface": [
+    "EvidenceIndex",
+    "EvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

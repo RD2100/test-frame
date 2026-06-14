@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-037",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P0",
+  "scenario": "A paper privacy gate returns human_required, but the report promotes it to PASS.",
+  "input_report_features": "RuntimeAuthorization.preflight_status='human_required' for paragraph_text, privacy_gate.status='human_required', and human_gate_ref is missing. ExecutionReport.summary says 'human gate resolved automatically, PASS' and GateResult.result='pass' without a human decision record.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "human_required was promoted to PASS without human decision evidence",
+    "Missing human_gate_ref or reviewer decision for sensitive paper input",
+    "RuntimeAuthorization human_required must stop execution or remain blocked",
+    "Fake green: privacy gate status contradicts GateResult.result"
+  ],
+  "related_invariant": "review-001, RuntimeAuthorization, paper:sensitive-input-human-gate",
+  "hard_stop": true,
+  "canary_tags": [
+    "human-required-promoted-pass",
+    "runtime-authorization",
+    "fake-green"
+  ],
+  "contract_surface": [
+    "RuntimeAuthorization",
+    "GateResult",
+    "ExecutionReport"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

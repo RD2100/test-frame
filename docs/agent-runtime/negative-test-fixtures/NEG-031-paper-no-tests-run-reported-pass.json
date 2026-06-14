@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-031",
+  "domain": "paper_writelab_redacted_reviewer_pack",
+  "gate_level": "P1",
+  "scenario": "A paper/WriteLab redacted reviewer pack reports the privacy verification as PASS even though no local static, unit, fixture, or contract tests were run and no no-test rationale is present.",
+  "input_report_features": "ExecutionReport.summary says 'paper privacy gates passed and reviewer pack is ready'. RunSpec.command is empty, test_summary.total=0, EvidenceManifest has no current test artifacts, and there is no explicit no-test rationale. The report asks the reviewer to treat the generated summary as sufficient evidence.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "No-tests-run evidence gap: test_summary.total=0 without rationale",
+    "ExecutionReport summary cannot substitute for current verification evidence",
+    "EvidenceManifest lacks current local static/unit/fixture/contract evidence",
+    "test-frame may provide verification evidence only, not final acceptance"
+  ],
+  "related_invariant": "review-004, integration-contracts:EvidenceManifest, paper:redacted-reviewer-pack",
+  "hard_stop": false,
+  "canary_tags": [
+    "no-tests-run",
+    "summary-overclaim",
+    "verification-evidence-only"
+  ],
+  "contract_surface": [
+    "RunSpec",
+    "ExecutionReport",
+    "EvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

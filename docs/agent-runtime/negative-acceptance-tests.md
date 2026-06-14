@@ -1,7 +1,7 @@
 # RD2100 Agent Runtime v2 -- Negative Acceptance Tests
 
 > Batch D3, 2026-05-27
-> 30 negative acceptance test cases for reviewer detection capability testing.
+> 38 negative acceptance test cases for reviewer detection capability testing.
 > Each test simulates a report with deliberate violations. The reviewer must catch them.
 
 ## Test Index
@@ -38,14 +38,22 @@
 | NEG-028 | Unregistered CDP/browser dispatch invoked in Phase 0-5 (FORBIDDEN) | blocked | Yes |
 | NEG-029 | Constraint compliance table missing from report (review-002) | warning | No |
 | NEG-030 | P0 priority task executed without pre-approval | blocked | Yes |
+| NEG-031 | Paper no-tests-run reported as verification PASS | fail | No |
+| NEG-032 | Paper privacy gate failed but reported green | blocked | Yes |
+| NEG-033 | Redacted reviewer pack summary treated as final verdict | blocked | Yes |
+| NEG-034 | Paper reviewer-pack artifact outside approved root | blocked | Yes |
+| NEG-035 | WriteLab token-like value in stdout or evidence | blocked | Yes |
+| NEG-036 | Redacted reviewer pack contains raw paragraph text | blocked | Yes |
+| NEG-037 | Paper `human_required` promoted to PASS | blocked | Yes |
+| NEG-038 | Redacted reviewer pack missing hash, manifest, and boundary fields | warning | No |
 
 ## Gate Decision Distribution
 
 | Decision | Count |
 |----------|-------|
-| blocked | 22 |
-| fail | 6 |
-| warning | 2 |
+| blocked | 28 |
+| fail | 7 |
+| warning | 3 |
 
 ## Invariant Coverage Map
 
@@ -75,6 +83,12 @@
 | integration-contracts | Contract 6: SkillIntakeRecord | NEG-014 |
 | integration-contracts | Contract 7: ToolRiskRecord | NEG-015 |
 | integration-contracts | Contract 8: MemoryUpdateRecord | NEG-008, NEG-016 |
+| integration-contracts | EvidenceManifest / reviewer pack integrity | NEG-031, NEG-034, NEG-038 |
+| integration-contracts | RuntimeAuthorization sensitive paper input | NEG-037 |
+| review-001 | Paper/WriteLab Fake Green | NEG-032, NEG-037 |
+| review-004 | Paper reviewer pack evidence chain | NEG-031, NEG-038 |
+| review-005 | Summary is not final verdict | NEG-033 |
+| security | No raw paper text or WriteLab tokens in reports/evidence | NEG-035, NEG-036 |
 
 ## Phase 3 Adapter Canary Guidance
 
@@ -99,6 +113,25 @@ These are strategy inputs for the devframe-system adapter and reviewer gates. Th
 - Future fixture candidates: no-tests-run with zero evidence, infrastructure failure mislabeled PASS, optional BLOCKED hidden from evidence, required capability non-PASS treated as success, wrong `RunSpec.cwd`, secret in stdout/stderr/log artifact, and artifact path that is inside root but missing on disk.
 - Any future fixture additions must preserve the current rule that negative tests validate reviewer detection capability; they are not substitutes for current runtime evidence.
 
+## Paper/WriteLab Redacted Reviewer Pack Extension
+
+NEG-031 through NEG-038 are local reviewer-detection fixtures for paper/WriteLab privacy
+gates and full redacted reviewer packs. They do not execute WriteLab, H5, MiniApp,
+MeterSphere, Cloud Device, Android, or any other external runtime. They assert that a
+reviewer must reject or warn on:
+
+- no-tests-run reported as success;
+- failed privacy checks reported as green;
+- generated summaries treated as final acceptance;
+- evidence artifacts outside the approved root;
+- token-like values in stdout/evidence;
+- raw `paragraph_text` in a redacted pack;
+- `human_required` promoted to PASS;
+- summary-only packs without hash, manifest, or explicit verification boundary.
+
+The required boundary remains: test-frame can produce verification evidence and reviewer
+calibration inputs, but cannot produce final paper acceptance or live WriteLab success claims.
+
 ## Fixture Files
 
 All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the structure defined in the fixture README.
@@ -109,8 +142,8 @@ All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the 
 # RD2100 Agent Runtime v2 Batch D3 Execution Report
 ## Status
 ## Task: Batch D3 - Negative Acceptance Tests
-## Fixture Count: 30/30
-## Hard Stop Count: 22
+## Fixture Count: 38/38
+## Hard Stop Count: 28
 ## Coverage Map: All 6 review rules, all P0+P1+P2+P3 gates, all 8 core contracts, all FORBIDDEN tool categories, all phase boundary policies
-## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (30 fixtures + README.md)
+## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (38 fixtures + README.md)
 ```
