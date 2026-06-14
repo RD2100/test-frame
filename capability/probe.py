@@ -23,6 +23,8 @@ PROVIDERS: dict[str, Provider] = {
     "h5.staging.env": h5.probe_staging_env,
     "h5.auth.env": h5.probe_auth_env,
     "h5.auth.storage_state": h5.probe_auth_storage_state,
+    "h5.auth.login.local": h5.probe_auth_login_local,
+    "h5.auth.storage_state.generated": h5.probe_auth_storage_state_generated,
     "cloud.device.env": cloud_device.probe_env,
     "cloud.device.matrix.contract": cloud_device.probe_matrix_contract,
     "cloud.device.provider.fake": cloud_device.probe_provider_fake,

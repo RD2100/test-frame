@@ -251,6 +251,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-CLOUD-DEVICE-PROVIDER-AUTH-SKELETON-A1`; real cloud-device execution still needs separate review.
 - **Boundary note**: profile PASS proves only env presence and explicit provider-auth readiness; it does not prove quota, device capacity, upload success, matrix job creation, real device execution, compatibility coverage, or billing-safe readiness.
 
+## 22. H5 Auth Login Execution Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/local_browser_execution | **Risk**: medium
+- **Preferred for**: proving repo-local fake H5 auth login execution and Playwright storageState generation before real H5 auth/E2E work
+- **Forbidden for**: visiting staging or production, submitting real credentials, committing generated storageState, storing passwords/cookies/localStorage values in evidence, or claiming real login/business E2E success
+- **Fallback**: `h5.auth.login.local` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (real staging login, real credentials, shared CI promotion, or storing reusable auth state) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile h5.auth.login.local --evidence artifacts/h5.auth.login.local.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-AUTH-LOGIN-EXECUTION-SKELETON-A1`; real H5 staging login still needs separate review.
+- **Boundary note**: profile PASS proves only repo-local fake auth login execution and generated storageState shape; it does not prove real site reachability, credential validity, backend authorization, session freshness, business H5 E2E, or full regression coverage.
+
 ---
 
 ## Summary
@@ -278,6 +290,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 19 | H5 Auth Staging Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 20 | Cloud Device Matrix Contract Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 21 | Cloud Device Provider Auth Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 22 | H5 Auth Login Execution Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

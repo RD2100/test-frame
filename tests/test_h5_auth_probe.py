@@ -122,6 +122,17 @@ def test_h5_storage_state_invalid_shape_fails(monkeypatch, tmp_path):
     assert result.reason == "H5 auth storageState JSON does not match Playwright shape"
 
 
+def test_h5_storage_state_missing_required_keys_fails(monkeypatch, tmp_path):
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps({"origins": []}), encoding="utf-8")
+    monkeypatch.setenv("H5_AUTH_STORAGE_STATE", str(state_path))
+
+    result = h5.probe_auth_storage_state(required=True)
+
+    assert result.status == "FAILED"
+    assert result.reason == "H5 auth storageState JSON does not match Playwright shape"
+
+
 def test_h5_storage_state_valid_does_not_leak_cookie_values(monkeypatch, tmp_path):
     state_path = tmp_path / "state.json"
     state_path.write_text(

@@ -49,6 +49,15 @@ python -m cli.main check --profile h5.auth.staging --evidence artifacts\h5.auth.
 
 `h5.auth.staging` requires `playwright.cli`, `playwright.browser.chromium`, `h5.staging.env`, `h5.auth.env`, and `h5.auth.storage_state` to PASS. It does not visit the staging site, perform login, or run business H5 E2E. Evidence records only URL structure, env presence, and storageState counts; it must not include passwords, cookies, localStorage values, or URL query values.
 
+For repo-local H5 auth login execution plumbing, use:
+
+```powershell
+node scripts\h5-auth-login.mjs --out artifacts\h5-auth\storage-state.json
+python -m cli.main check --profile h5.auth.login.local --evidence artifacts\h5.auth.login.local.json
+```
+
+`h5.auth.login.local` requires `playwright.cli`, `playwright.browser.chromium`, `h5.auth.login.local`, and `h5.auth.storage_state.generated` to PASS. It only proves Chromium can complete the repo-local fake auth fixture and generate a structurally valid Playwright storageState. It does not prove real staging login, credential validity, backend authorization, business H5 E2E, cookie freshness, or full regression coverage. Generated storageState belongs under `artifacts/` and must not be committed.
+
 ## P1 Cloud Device Matrix Contract Boundaries
 
 Cloud device compatibility readiness is split into env, local matrix contract, and fake provider layers:

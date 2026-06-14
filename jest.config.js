@@ -12,6 +12,8 @@ module.exports = {
   testTimeout: 60000,
   verbose: true,
   reporters: ['default'],
+  modulePathIgnorePatterns: ['<rootDir>/artifacts/'],
+  watchPathIgnorePatterns: ['<rootDir>/artifacts/'],
   globals: {
     WECHAT_DEVTOOL_PATH: process.env.WECHAT_DEVTOOL_PATH || '',
     MINIPROGRAM_PATH: process.env.MINIPROGRAM_PATH || './miniprogram',

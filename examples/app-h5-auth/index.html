@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TestFrame H5 Auth Fixture</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 2rem;
+        max-width: 36rem;
+      }
+
+      label {
+        display: block;
+        margin-top: 1rem;
+      }
+
+      input,
+      button {
+        font: inherit;
+        margin-top: 0.25rem;
+        padding: 0.5rem;
+      }
+
+      .status {
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body data-auth-state="login">
+    <main>
+      <h1 data-testid="heading">TestFrame H5 Auth Fixture</h1>
+      <p>This repo-local fixture is for browser automation plumbing only.</p>
+      <form data-testid="login-form">
+        <label>
+          Email
+          <input data-testid="email" name="email" autocomplete="username" />
+        </label>
+        <label>
+          Password
+          <input data-testid="password" name="password" type="password" autocomplete="current-password" />
+        </label>
+        <button data-testid="login-submit" type="submit">Login</button>
+      </form>
+      <p class="status" data-testid="login-status">waiting</p>
+    </main>
+    <script>
+      const DEMO_EMAIL = 'demo@example.test';
+      const DEMO_PASSWORD = 'demo-password';
+
+      document.querySelector('[data-testid="login-form"]').addEventListener('submit', (event) => {
+        event.preventDefault();
+        const email = document.querySelector('[data-testid="email"]').value;
+        const password = document.querySelector('[data-testid="password"]').value;
+        const status = document.querySelector('[data-testid="login-status"]');
+
+        if (email !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+          document.body.dataset.authState = 'failed';
+          status.textContent = 'login failed';
+          return;
+        }
+
+        localStorage.setItem('tf_auth_session', JSON.stringify({
+          fixtureOnly: true,
+          email: DEMO_EMAIL,
+          issuedBy: 'repo-local-h5-auth-fixture',
+        }));
+        document.cookie = 'tf_auth_fixture=fixture-session; SameSite=Lax; path=/';
+        document.body.dataset.authState = 'authenticated';
+        status.dataset.testid = 'login-success';
+        status.textContent = 'login success';
+      });
+    </script>
+  </body>
+</html>

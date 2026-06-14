@@ -23,6 +23,12 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "h5.auth.env",
         "h5.auth.storage_state",
     ),
+    "h5.auth.login.local": (
+        "playwright.cli",
+        "playwright.browser.chromium",
+        "h5.auth.login.local",
+        "h5.auth.storage_state.generated",
+    ),
     "cloud.device.matrix.real": (
         "cloud.device.env",
         "cloud.device.matrix.contract",

@@ -34,6 +34,12 @@ SENSITIVE_KEYS = (
     "COOKIE",
     "SET-COOKIE",
 )
+NON_SENSITIVE_METADATA_KEYS = {
+    "COOKIE-COUNT",
+    "HAS-COOKIES-KEY",
+    "LOCAL-STORAGE-ENTRY-COUNT",
+    "ORIGIN-COUNT",
+}
 
 AUTHORIZATION_BEARER_RE = re.compile(r"(?i)(Authorization\s*:\s*Bearer\s+)([^\s,;]+)")
 BEARER_RE = re.compile(r"(?i)(Bearer\s+)([A-Za-z0-9._~+/=-]{8,})")
@@ -44,6 +50,8 @@ KEY_VALUE_SECRET_RE = re.compile(
 
 def is_sensitive_key(key: str) -> bool:
     normalized = key.upper().replace("_", "-")
+    if normalized in NON_SENSITIVE_METADATA_KEYS:
+        return False
     return any(marker.replace("_", "-") in normalized for marker in SENSITIVE_KEYS)
 
 

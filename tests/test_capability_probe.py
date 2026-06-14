@@ -113,6 +113,8 @@ def test_h5_auth_capabilities_are_scoped():
     assert "h5.staging.env" in PROVIDERS
     assert "h5.auth.env" in PROVIDERS
     assert "h5.auth.storage_state" in PROVIDERS
+    assert "h5.auth.login.local" in PROVIDERS
+    assert "h5.auth.storage_state.generated" in PROVIDERS
     assert "h5.auth" not in PROVIDERS
     assert "h5.staging" not in PROVIDERS
 
@@ -170,6 +172,26 @@ def test_redact_value_recursively_masks_sensitive_fields():
     assert "status=401" in redacted["stderr"]
     assert redacted["nested"][0]["api_key"] == "[REDACTED]"
     assert redacted["nested"][1]["message"] == "keep diagnostics"
+
+
+def test_redact_value_keeps_storage_state_count_metadata():
+    payload = {
+        "storage_state": {
+            "cookie_count": 1,
+            "origin_count": 1,
+            "local_storage_entry_count": 1,
+            "has_cookies_key": True,
+            "cookie_value": "secret-cookie-123",
+        }
+    }
+
+    redacted = redact_value(payload)
+
+    assert redacted["storage_state"]["cookie_count"] == 1
+    assert redacted["storage_state"]["origin_count"] == 1
+    assert redacted["storage_state"]["local_storage_entry_count"] == 1
+    assert redacted["storage_state"]["has_cookies_key"] is True
+    assert redacted["storage_state"]["cookie_value"] == "[REDACTED]"
 
 
 def test_write_evidence_outputs_machine_readable_json(tmp_path):
