@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-039",
+  "domain": "paper_writelab_business_validation",
+  "gate_level": "P1",
+  "scenario": "A paper business-capability validation report claims offline verification success but omits the command-chain evidence needed to reproduce what was checked.",
+  "input_report_features": "ExecutionReport.summary says 'business capability validated with synthetic evidence'. EvidenceManifest includes a reviewer_pack path, but RunSpec.command_chain is missing, command exit codes are absent, cwd is not recorded, and no static/unit/fixture/contract command evidence is linked. The report asks reviewers to trust the generated prose summary as proof that the offline validation chain ran.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "Missing command-chain evidence for paper business validation",
+    "RunSpec lacks reproducible command, cwd, and exit-code records",
+    "EvidenceManifest cannot prove which offline checks produced the reviewer pack",
+    "Generated summary cannot replace command-chain verification evidence"
+  ],
+  "related_invariant": "review-004, integration-contracts:RunSpec, integration-contracts:EvidenceManifest, paper:business-validation",
+  "hard_stop": false,
+  "canary_tags": [
+    "missing-command-chain",
+    "business-validation",
+    "synthetic-offline-evidence"
+  ],
+  "contract_surface": [
+    "RunSpec",
+    "ExecutionReport",
+    "EvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

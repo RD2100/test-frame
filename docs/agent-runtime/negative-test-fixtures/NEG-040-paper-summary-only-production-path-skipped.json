@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-040",
+  "domain": "paper_writelab_business_validation",
+  "gate_level": "P1",
+  "scenario": "A paper business-capability validation report claims success after generating only a summary, without exercising the offline production-path adapter or contract fixtures.",
+  "input_report_features": "The report contains reviewer_summary.md and says 'production path passed', but RunSpec.commands only include a summary-generation script. There is no evidence for the local paper task input schema, redaction gate, handoff manifest, reviewer-pack contract, or offline adapter path. No external runtime is claimed, but the offline production-path evidence is still missing.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "Summary-only execution cannot prove offline production-path behavior",
+    "Missing contract evidence for paper task input, redaction gate, handoff manifest, and reviewer pack",
+    "Business capability validation must distinguish summary generation from adapter-path verification",
+    "test-frame evidence must not claim final business acceptance"
+  ],
+  "related_invariant": "review-004, review-005, paper:offline-production-path, paper:business-validation",
+  "hard_stop": false,
+  "canary_tags": [
+    "summary-only-production-path-skipped",
+    "business-validation",
+    "offline-adapter-contract"
+  ],
+  "contract_surface": [
+    "RunSpec",
+    "TestExecutionReport",
+    "ReviewerEvidencePack"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

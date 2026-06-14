@@ -50,6 +50,31 @@ PAPER_FIXTURE_IDS = {
         "decision": "warning",
         "tag": "missing-hash-manifest",
     },
+    "NEG-039": {
+        "gate_level": "P1",
+        "decision": "fail",
+        "tag": "missing-command-chain",
+    },
+    "NEG-040": {
+        "gate_level": "P1",
+        "decision": "fail",
+        "tag": "summary-only-production-path-skipped",
+    },
+    "NEG-041": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "audit-zip-as-final-acceptance",
+    },
+    "NEG-042": {
+        "gate_level": "P1",
+        "decision": "fail",
+        "tag": "offline-handoff-integrity-missing",
+    },
+    "NEG-043": {
+        "gate_level": "P1",
+        "decision": "fail",
+        "tag": "business-manifest-incomplete",
+    },
 }
 
 REQUIRED_FIELDS = {
@@ -73,9 +98,9 @@ def _load_fixtures() -> list[dict]:
 def test_all_negative_fixtures_keep_core_contract_shape():
     fixtures = _load_fixtures()
 
-    assert len(fixtures) == 38
+    assert len(fixtures) == 43
     assert {fixture["test_id"] for fixture in fixtures} == {
-        f"NEG-{index:03d}" for index in range(1, 39)
+        f"NEG-{index:03d}" for index in range(1, 44)
     }
     for fixture in fixtures:
         assert REQUIRED_FIELDS <= set(fixture), fixture["test_id"]
@@ -87,7 +112,7 @@ def test_paper_writelab_negative_fixtures_cover_required_canaries():
     fixtures = {
         fixture["test_id"]: fixture
         for fixture in _load_fixtures()
-        if fixture.get("domain") == "paper_writelab_redacted_reviewer_pack"
+        if fixture.get("domain", "").startswith("paper_writelab_")
     }
 
     assert set(fixtures) == set(PAPER_FIXTURE_IDS)

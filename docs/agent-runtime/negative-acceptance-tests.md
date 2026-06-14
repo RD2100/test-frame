@@ -1,7 +1,7 @@
 # RD2100 Agent Runtime v2 -- Negative Acceptance Tests
 
 > Batch D3, 2026-05-27
-> 38 negative acceptance test cases for reviewer detection capability testing.
+> 43 negative acceptance test cases for reviewer detection capability testing.
 > Each test simulates a report with deliberate violations. The reviewer must catch them.
 
 ## Test Index
@@ -46,13 +46,18 @@
 | NEG-036 | Redacted reviewer pack contains raw paragraph text | blocked | Yes |
 | NEG-037 | Paper `human_required` promoted to PASS | blocked | Yes |
 | NEG-038 | Redacted reviewer pack missing hash, manifest, and boundary fields | warning | No |
+| NEG-039 | Paper business validation missing command-chain evidence | fail | No |
+| NEG-040 | Paper summary-only run reported as production-path validation | fail | No |
+| NEG-041 | Paper reviewer or audit zip treated as final acceptance | blocked | Yes |
+| NEG-042 | Paper offline handoff integrity missing manifest and hash chain | fail | No |
+| NEG-043 | Paper business evidence pack missing artifact/hash/manifest fields | fail | No |
 
 ## Gate Decision Distribution
 
 | Decision | Count |
 |----------|-------|
-| blocked | 28 |
-| fail | 7 |
+| blocked | 29 |
+| fail | 11 |
 | warning | 3 |
 
 ## Invariant Coverage Map
@@ -89,6 +94,8 @@
 | review-004 | Paper reviewer pack evidence chain | NEG-031, NEG-038 |
 | review-005 | Summary is not final verdict | NEG-033 |
 | security | No raw paper text or WriteLab tokens in reports/evidence | NEG-035, NEG-036 |
+| review-004 | Paper business validation command and handoff evidence chain | NEG-039, NEG-040, NEG-042, NEG-043 |
+| review-005 | Paper reviewer/audit pack is not final acceptance | NEG-041 |
 
 ## Phase 3 Adapter Canary Guidance
 
@@ -132,6 +139,20 @@ reviewer must reject or warn on:
 The required boundary remains: test-frame can produce verification evidence and reviewer
 calibration inputs, but cannot produce final paper acceptance or live WriteLab success claims.
 
+## Paper/WriteLab Business Validation Extension
+
+NEG-039 through NEG-043 are synthetic/offline reviewer-detection fixtures for paper
+business-capability validation. They cover:
+
+- missing command-chain evidence;
+- summary-only execution reported as offline production-path validation;
+- reviewer or audit zip treated as final acceptance;
+- offline handoff integrity missing manifest and hash evidence;
+- incomplete business evidence pack missing artifact, hash, gate, or boundary fields.
+
+These fixtures do not execute live WriteLab or any external runtime. They only verify that
+reviewers reject overclaims and incomplete synthetic/offline evidence.
+
 ## Fixture Files
 
 All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the structure defined in the fixture README.
@@ -142,8 +163,8 @@ All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the 
 # RD2100 Agent Runtime v2 Batch D3 Execution Report
 ## Status
 ## Task: Batch D3 - Negative Acceptance Tests
-## Fixture Count: 38/38
-## Hard Stop Count: 28
+## Fixture Count: 43/43
+## Hard Stop Count: 29
 ## Coverage Map: All 6 review rules, all P0+P1+P2+P3 gates, all 8 core contracts, all FORBIDDEN tool categories, all phase boundary policies
-## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (38 fixtures + README.md)
+## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (43 fixtures + README.md)
 ```

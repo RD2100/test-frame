@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-043",
+  "domain": "paper_writelab_business_validation",
+  "gate_level": "P1",
+  "scenario": "A paper business-capability report claims the synthetic/offline evidence pack is complete while required artifact, hash, and manifest fields are absent.",
+  "input_report_features": "The report lists business_validation='passed' and references paper_evidence_pack.json, but the pack has no artifacts[].sha256, no generated_at, no schema_version, no redaction_gate_result, no authorization_gate_result, and no reviewer_boundary field. The summary says missing fields are harmless because the pack is synthetic.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "Synthetic/offline evidence still requires artifact, hash, manifest, and boundary fields",
+    "Missing redaction and authorization gate results for paper business validation",
+    "Incomplete evidence pack cannot support business capability validation",
+    "test-frame cannot turn an incomplete manifest into final acceptance"
+  ],
+  "related_invariant": "integration-contracts:EvidenceManifest, paper:evidence-pack, paper:business-validation, review-004",
+  "hard_stop": false,
+  "canary_tags": [
+    "business-manifest-incomplete",
+    "missing-hash-manifest",
+    "verification-boundary"
+  ],
+  "contract_surface": [
+    "EvidenceManifest",
+    "TestExecutionReport",
+    "ReviewerEvidencePack"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

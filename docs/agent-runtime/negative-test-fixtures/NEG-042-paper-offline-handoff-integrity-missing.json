@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-042",
+  "domain": "paper_writelab_business_validation",
+  "gate_level": "P1",
+  "scenario": "An offline paper handoff package is reported as valid even though its integrity fields are incomplete or unverifiable.",
+  "input_report_features": "writelab_paper_handoff.zip is listed, but handoff_manifest.json is missing from the EvidenceManifest. The report omits zip_sha256, manifest_sha256, file count, expected entry list, and redaction attestation hash. reviewer_pack_summary says 'handoff integrity checked' without a reproducible manifest or hash chain.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "Offline handoff integrity cannot be verified without manifest and hash chain",
+    "Missing zip_sha256, manifest_sha256, expected entries, or file-count evidence",
+    "Redaction attestation hash is absent from the handoff evidence",
+    "Summary text cannot prove handoff integrity"
+  ],
+  "related_invariant": "integration-contracts:EvidenceManifest, paper:writelab-offline-handoff, review-004",
+  "hard_stop": false,
+  "canary_tags": [
+    "offline-handoff-integrity-missing",
+    "missing-hash-manifest",
+    "business-validation"
+  ],
+  "contract_surface": [
+    "EvidenceManifest",
+    "ReviewerEvidencePack",
+    "writelab_paper_handoff"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

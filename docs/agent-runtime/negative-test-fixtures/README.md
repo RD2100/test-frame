@@ -1,7 +1,7 @@
 # Negative Test Fixtures -- RD2100 Agent Runtime v2
 
 > Batch D3, 2026-05-27
-> 38 deliberately-broken test fixtures for reviewer detection capability testing.
+> 43 deliberately-broken test fixtures for reviewer detection capability testing.
 
 ## Purpose
 
@@ -15,7 +15,7 @@ Each `.json` file is a self-contained test case with these fields:
 
 | Field | Description |
 |-------|-------------|
-| `test_id` | Unique identifier (NEG-001 through NEG-030) |
+| `test_id` | Unique identifier (NEG-001 through NEG-043) |
 | `scenario` | Human-readable description of the violation being tested |
 | `input_report_features` | Description of what the fake report contains -- the violation details |
 | `expected_gate_decision` | What the reviewer should decide (must NOT be "pass") |
@@ -27,7 +27,7 @@ Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
 
 | Field | Description |
 |-------|-------------|
-| `domain` | Domain-specific fixture group, such as `paper_writelab_redacted_reviewer_pack` |
+| `domain` | Domain-specific fixture group, such as `paper_writelab_redacted_reviewer_pack` or `paper_writelab_business_validation` |
 | `gate_level` | P0/P1/P2/P3 severity expected for the reviewer gate |
 | `canary_tags` | Canary categories covered by the fixture |
 | `contract_surface` | Contracts or schemas the fixture is meant to exercise |
@@ -58,6 +58,7 @@ Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
 | Source-of-truth / architecture | 1 | NEG-003 |
 | Gate result integrity | 1 | NEG-010 |
 | Paper/WriteLab redacted reviewer pack | 8 | NEG-031, NEG-032, NEG-033, NEG-034, NEG-035, NEG-036, NEG-037, NEG-038 |
+| Paper/WriteLab business validation | 5 | NEG-039, NEG-040, NEG-041, NEG-042, NEG-043 |
 
 ## Hard Stop Distribution
 
@@ -65,8 +66,8 @@ Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
 |-----------|-------|
 | true (P0) | 22 |
 | false (P1/P2/P3) | 8 |
-| paper extension true (P0) | 6 |
-| paper extension false (P1/P2) | 2 |
+| paper extension true (P0) | 7 |
+| paper extension false (P1/P2) | 6 |
 
 ## Relationship to Invariants
 
@@ -92,3 +93,15 @@ NEG-031 through NEG-038 cover paper/WriteLab/redacted reviewer pack canaries for
 These fixtures remain reviewer detection inputs. test-frame may produce verification evidence
 and reviewer calibration inputs, but it must not produce final paper acceptance, paper quality
 verdicts, or live WriteLab success claims.
+
+NEG-039 through NEG-043 extend the paper/WriteLab coverage to business-capability
+validation canaries using synthetic/offline evidence only:
+
+- missing command-chain evidence for reproducibility;
+- summary generation reported as offline production-path validation;
+- reviewer or audit zip treated as final acceptance;
+- offline handoff integrity missing manifest and hash chain;
+- incomplete synthetic evidence pack missing artifact, hash, gate, and boundary fields.
+
+These fixtures are reviewer detection inputs. They do not execute live WriteLab,
+external runtimes, H5, MiniApp, MeterSphere, cloud device, or Android capability.
