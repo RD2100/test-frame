@@ -1,7 +1,7 @@
 [project]
 name = "testframe"
 version = "0.1.0"
-description = "通用自动化Bug发现体系 - 基于成熟工具组合"
+description = "General-purpose automated bug discovery framework built from mature tools"
 requires-python = ">=3.10"
 dependencies = [
     "click>=8.0",

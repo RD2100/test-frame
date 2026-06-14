@@ -1,0 +1,55 @@
+# 文档命令审计记录
+
+> 审计日期：2026-06-14
+> 目的：核对 README / VERIFY / SETUP / PIPELINE 中声明的本地命令是否真实可执行，并区分“项目能力问题”和“当前环境未就绪”。
+
+## 已验证通过
+
+| 命令 | 结果摘要 | 验证内容 |
+|---|---|---|
+| `python --version` | `Python 3.10.11` | Python 运行时可用 |
+| `node --version` | `v24.15.0` | Node.js 运行时可用 |
+| `npm --version` | `11.12.1` | npm 可用 |
+| `python -m cli.main --help` | 列出 `attribute/check/report/run/watch` | CLI 入口可加载 |
+| `python -m cli.main check --project=app-android` | `[OK] Config check passed` | Android 示例配置可加载 |
+| `python -m cli.main check --project=app-miniapp` | `[OK] Config check passed` | 小程序示例配置可加载 |
+| `python -m cli.main check --project=app-api` | `[OK] Config check passed` | API 示例配置可加载 |
+| `python -m cli.main run --project=app-android --profile=smoke --dry-run` | 打印 `maestro` 阶段计划 | Android smoke 任务流可规划 |
+| `python -m cli.main run --project=app-miniapp --profile=smoke --dry-run` | 打印 `miniprogram-automator` 阶段计划 | 小程序 smoke 任务流可规划 |
+| `python -m cli.main run --project=app-api --profile=smoke --dry-run` | 打印 `metersphere` 阶段计划 | API smoke 任务流可规划 |
+| `python -m cli.main attribute --project=app-android` | 生成归因报告，失败用例 0 | 归因入口可执行 |
+| `python -m cli.main report --project=app-android` | 输出 Allure 缺失警告，仍生成报告目录 | 报告入口可执行且能降级 |
+| `npx playwright --version` | `Version 1.60.0` | Playwright 本地包可用 |
+| `npx jest --listTests --config=jest.config.js` | 发现 `tests/h5/support/__tests__/oracles.test.js` | Jest 配置能发现 JS oracle 测试 |
+| `docker --version` | `Docker version 29.5.3` | Docker CLI 可用 |
+| `python -c "import airtest; print('OK')"` | `OK` | Airtest Python 包可导入 |
+
+## 已验证未通过 / 环境缺失
+
+| 命令 | 结果摘要 | 判断 |
+|---|---|---|
+| `adb --version` | `adb` 不在 PATH | 当前机器不能直接跑 Android 真机/模拟器链路；不等于框架代码失败 |
+| `maestro --version` | `maestro` 不在 PATH | Android Maestro smoke 真实执行链路当前不可用 |
+| `allure --version` | `allure` 不在 PATH | HTML Allure 报告生成不可用；项目 `report` 入口已降级为警告 |
+
+## 本轮未执行
+
+| 命令/能力 | 未执行原因 | 对结论影响 |
+|---|---|---|
+| `python -m cli.main run --project=app-android --profile=smoke` | 需要 ADB / Maestro / 设备环境；当前 `adb` 与 `maestro` 缺失 | 无法证明 Android 真实设备执行链路可用 |
+| `npx playwright test tests/h5/playwright/` | 文档路径与当前仓库实际测试布局不完全一致；本轮仅验证 Playwright 包与 Jest 发现 | 无法证明 H5 E2E 全链路可用 |
+| `npx jest tests/miniapp/specs/ --json` | 文档路径未在当前命令审计中作为稳定入口验证；当前稳定入口是 `npm run test:miniapp` | 小程序 Jest 入口需以后续总验证为准 |
+| `python -m cli.main run --project=app-miniapp --profile=smoke` | 需要微信开发者工具运行时 / automator endpoint | 无法证明小程序 UI 自动化真实链路可用 |
+| `python -m cli.main run --project=app-api --profile=smoke` | 依赖 MeterSphere/API 服务环境 | 无法证明外部 API 平台集成可用 |
+| `bash ci/scripts/run-tests.sh app-android smoke` | Windows 当前审计不把 Bash 脚本作为本地默认入口；且设备依赖缺失 | CI 脚本跨平台可用性仍待确认 |
+| `allure serve reports/allure-results/` | Allure CLI 缺失，且会启动本地服务 | HTML 报告浏览能力未验证 |
+
+## 结论
+
+当前文档中“框架本体入口、配置检查、dry-run、报告/归因降级、JS/Playwright 包可用性”基本可信；“真实 Android 设备、小程序运行时、MeterSphere、Allure HTML、跨平台 Bash CI”仍属于环境依赖或外部集成能力，不能作为当前机器已通过的质量结论。
+
+后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
+
+1. 环境探针：ADB / Maestro / WeChat DevTools / MeterSphere / Allure 的统一 `check` 输出。
+2. 可复现 harness：对每类外部工具提供 fake backend 或 local simulator，先验证框架协议，再接真实环境。
+3. 证据分层：把 `dry-run PASS`、`environment BLOCKED`、`real execution PASS/FAIL` 明确分开，避免假绿。

@@ -1,6 +1,6 @@
-# ci-preflight.ps1 — Run CI-equivalent checks locally.
+# ci-preflight.ps1 - Run CI-equivalent checks locally.
 $ErrorActionPreference = 'Continue'
-$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$ProjectRoot = (Resolve-Path $PSScriptRoot).Path
 $errors = 0
 Write-Host "=== CI Preflight ==="
 Write-Host ""

@@ -1,7 +1,7 @@
 {
   "name": "testframe",
   "version": "0.1.0",
-  "description": "TestFrame - 通用自动化Bug发现体系",
+  "description": "TestFrame - general-purpose automated bug discovery framework",
   "private": true,
   "scripts": {
     "test:h5": "npx playwright test tests/h5/ --config=playwright.config.js",
