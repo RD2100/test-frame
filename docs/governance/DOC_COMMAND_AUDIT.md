@@ -71,6 +71,8 @@ Added 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`.
 
 Hard rule: do not report `playwright.cli PASS` as H5 E2E PASS, and do not report Allure HTML generated unless `index.html` exists after a zero-exit generation command.
 
+Default report mode preserves evidence: Allure `BLOCKED` writes `allure-generation.json` and exits 0. Required HTML mode is stricter: `python -m cli.main report --project=app-h5 --output artifacts\reports\app-h5 --require-html` exits non-zero for `BLOCKED` or `FAILED`.
+
 状态语义：
 
 | 状态 | 含义 |

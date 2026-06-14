@@ -95,3 +95,34 @@ def test_report_cli_does_not_claim_html_generated_when_allure_is_blocked(tmp_pat
     assert "[BLOCKED] Allure HTML not generated" in result.output
     assert "[OK] Report generated" not in result.output
     assert "Allure HTML generated" not in result.output
+
+
+def test_report_cli_require_html_fails_when_allure_is_blocked(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("aggregator.collector.collect_all_results", lambda project_config: [])
+    monkeypatch.setattr(
+        "aggregator.collector.generate_allure_report",
+        lambda results_dir, report_dir, summary_path=None: generate_allure_report(
+            results_dir,
+            report_dir,
+            summary_path=summary_path,
+            path_resolver=lambda name: None,
+            project_root=tmp_path,
+        ),
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "report",
+            "--project",
+            "app-h5",
+            "--output",
+            str(tmp_path / "reports"),
+            "--require-html",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] Allure HTML not generated" in result.output
+    assert "Fallback manifest written" in result.output

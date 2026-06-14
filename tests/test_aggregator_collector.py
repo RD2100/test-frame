@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import aggregator.collector as collector_module
 from aggregator.collector import (
     _stage_results_to_report_results,
     _write_allure_result,
@@ -183,6 +184,9 @@ class TestCollectFailedResults:
 
 class TestCollectAndGenerate:
     """Verify orchestrator report-stage context is accepted end to end."""
+
+    def test_legacy_collect_and_generate_is_not_callable(self):
+        assert collector_module._legacy_collect_and_generate is None
 
     def test_accepts_stage_results_profile_and_base_url(self, tmp_path, monkeypatch):
         results = [

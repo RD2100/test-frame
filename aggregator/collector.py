@@ -211,6 +211,9 @@ def collect_and_generate(project_name: str, date: str = None, output_dir: str = 
     return allure_generation
 
 
+_legacy_collect_and_generate = None
+
+
 def collect_failed_results(project_config: dict = None) -> list[dict]:
     """只收集失败的结果，用于归因分析"""
     all_results = collect_all_results(project_config)

@@ -138,10 +138,10 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Forbidden for**: treating `playwright.cli` as browser/E2E proof, treating missing Allure CLI as HTML PASS, or using external websites/accounts/services as the H5 smoke target
 - **Fallback**: `allure-generation.json` with status `BLOCKED` or `FAILED`; Playwright browser probe evidence under `--evidence`
 - **Human gate**: yes (making browser smoke or Allure HTML required in shared CI) | **Must explain if skipped**: yes
-- **Evidence**: `npm run test:h5:smoke`, `python -m cli.main check --capability playwright.browser.chromium ...`, `allure-generation.json`
+- **Evidence**: `npm run test:h5:smoke`, `python -m cli.main check --capability playwright.browser.chromium ...`, `python -m cli.main report --require-html ...`, `allure-generation.json`
 - **Status**: approved
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-REAL-BROWSER-ALLURE-A1`; GPT/reviewer acceptance is still required before promoting this to a shared CI required gate.
-- **Boundary note**: `playwright.browser.chromium` proves browser launch only; `h5.smoke` proves the repo-local fixture only; `allure.html` requires zero exit and `index.html`; `allure.fallback` is evidence preservation, not HTML success.
+- **Boundary note**: `playwright.browser.chromium` proves browser launch only; `h5.smoke` proves the repo-local fixture only; `allure.html` requires zero exit and `index.html`; default `allure.fallback` is evidence preservation, not HTML success; `--require-html` makes BLOCKED/FAILED report generation exit non-zero.
 
 ---
 

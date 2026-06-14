@@ -50,7 +50,8 @@ def run(project, profile, device, env, dry_run):
 @click.option("--project", "-p", required=True, help="项目名称")
 @click.option("--date", "-d", default=None, help="报告日期 (YYYY-MM-DD), 默认最新")
 @click.option("--output", "-o", default=None, help="输出目录")
-def report(project, date, output):
+@click.option("--require-html", is_flag=True, help="Fail when Allure HTML cannot be generated")
+def report(project, date, output, require_html):
     """生成Allure报告"""
     from aggregator.collector import collect_and_generate
 
@@ -61,6 +62,8 @@ def report(project, date, output):
     if result.status == "BLOCKED":
         click.echo(f"[BLOCKED] Allure HTML not generated: {result.reason}")
         click.echo(f"[OK] Fallback manifest written: {result.manifest_path}")
+        if require_html:
+            sys.exit(1)
         return
 
     click.echo(f"[FAIL] Allure HTML generation failed: {result.reason}", err=True)
