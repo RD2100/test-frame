@@ -472,8 +472,37 @@ Core contracts are the 8 defined above.
 - **Interface**: MCP (* tools)
 - **Direction**: Bidirectional (read: search/recent knowledge; write: register, share_decision, report_bug_pattern)
 
-### A4: test-frame (Future Downstream)
-- **Status**: PLANNED
+### A4: test-frame (Controlled Verification Runtime Candidate)
+- **Status**: PHASE_1B_ADAPTER_MAPPING
+- **Interface**: Evidence provider contracts, capability profiles, and report artifacts.
+- **Direction**: test-frame evidence is consumed by devframe-system planning/review layers.
+- **Boundary**: test-frame is a controlled verification runtime candidate. It is not a plugin, not a reviewer, and not a final verdict source.
+
+#### Adapter Mapping
+
+| test-frame surface | devframe-system consumer field | Adapter rule |
+|---|---|---|
+| `RunSpec.run_id` | adapter run identity | Preserve exactly; every evidence or report reference must point to a known run. |
+| `RunSpec.command` | execution command evidence | Preserve exact command text. Non-allowlisted commands must be surfaced as blocking review input, not normalized away. |
+| `RunSpec.cwd` | working-directory control | Must be inside the approved project root for the run. Wrong or missing cwd cannot support PASS. |
+| `RunSpec.exit_code` | gate status derivation | `0` maps to PASS, `1` maps to BLOCKED, `2` maps to FAILED. Other values are invalid and must not be coerced to PASS. |
+| `EvidenceIndex.artifact_path` | evidence artifact pointer | Must stay inside the approved project root and must reference a real artifact when used as current evidence. |
+| `EvidenceIndex.freshness` | evidence currency | `historical` and `stale_or_unknown` are context only. Gate evidence requires `current` with reviewer-approved currency. |
+| `EvidenceManifest.test_summary` | test evidence summary | A summary line is descriptive evidence only. It cannot by itself create final acceptance. |
+| `ExecutionReport.status` | executor-reported outcome | Treat as a claim until supported by RunSpec, EvidenceIndex, reviewer artifacts, and gate checks. |
+| `ExecutionReport.reviewer_artifacts` | independent review evidence | Required for pass reports. Reviewer identity must be independent from executor identity. |
+
+#### Status and Profile Semantics
+
+- Required capability/profile gates block unless every required capability returns `PASS`.
+- Optional capability probes may return `BLOCKED`, `FAILED`, `UNSUPPORTED`, or `NOT_REQUIRED` without failing a baseline, but they must remain visible in evidence.
+- Missing tools, missing browsers, missing devices, missing credentials, disabled real-auth flags, or unreachable endpoints are infrastructure evidence. They must be reported as `BLOCKED` or `FAILED`, never as PASS.
+- Allure HTML is PASS only when generation exits successfully and `allure-report/index.html` exists. `allure-generation.json` with `BLOCKED` or `FAILED` is fallback evidence preservation, not HTML success.
+- Local fake contracts, local H5 fixtures, and readiness profiles do not prove real H5, MiniApp, MeterSphere, cloud-device, or Android runtime success.
+
+#### Final Verdict Boundary
+
+The adapter may pass through evidence and derived status candidates, but it must not produce final acceptance. Final gate decisions require an independent reviewer or human gate. Summaries, generated reports, and historical artifacts are inputs to review; they are not final verdicts.
 
 ### A5: Memory System (Internal)
 - **Status**: PARTIAL -- Phase 0-5 read-only, MemoryUpdateRecord proposals only

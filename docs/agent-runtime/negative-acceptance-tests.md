@@ -76,6 +76,29 @@
 | integration-contracts | Contract 7: ToolRiskRecord | NEG-015 |
 | integration-contracts | Contract 8: MemoryUpdateRecord | NEG-008, NEG-016 |
 
+## Phase 3 Adapter Canary Guidance
+
+These are strategy inputs for the devframe-system adapter and reviewer gates. They do not add fixture count and do not execute runtime tests.
+
+| Canary | Existing coverage | Required adapter behavior |
+|---|---|---|
+| no tests run | PARTIAL via NEG-021 and EvidenceManifest `test_summary.mode=no_test_rationale` | Report as BLOCKED or explicit no-test rationale. Do not mark PASS from an empty or missing test summary. |
+| infra mislabeled pass | NEG-002, NEG-020 plus capability-profile BLOCKED semantics | Missing CLI/browser/device/endpoint/auth/tooling must remain BLOCKED or FAILED, not PASS. |
+| optional blocked vs required failure | Capability profiles and capability inventory #11-#23 | Optional BLOCKED probes stay visible but do not fail a baseline. Required profiles fail unless every required capability is PASS. |
+| wrong cwd | RunSpec `cwd`, NEG-017, NEG-024 | A run from outside the approved project root cannot support PASS. Surface as blocked review input. |
+| secret stdout | NEG-009, security rules, capability redaction schema | Any token/password/cookie/auth leakage blocks promotion; redaction must be verified before evidence is accepted. |
+| artifact outside root | NEG-017, NEG-024, EvidenceIndex path validation | Evidence paths must remain inside the approved project root and point to real artifacts when current. |
+| summary as final verdict | NEG-020, NEG-021, ExecutionReport reviewer-artifact rules | Generated summaries and reports are evidence inputs only; final acceptance requires independent reviewer decision. |
+| Allure fallback | Capability inventory #12 and report generator contract | `allure-generation.json` with BLOCKED/FAILED preserves evidence but is not HTML PASS. `--require-html` must exit non-zero for fallback states. |
+| local/fake contract overclaim | Capability inventory #15, #20, #22, #23 | Fake/local contract PASS must not be reported as real platform, cloud device, staging-login, or business E2E success. |
+
+### Phase 3 Fixture Gap Notes
+
+- Existing fixtures cover fake green, blocked-as-pass, missing evidence, dangerous git, write outside scope, path traversal, secret read, phase-boundary violation, and self-approval.
+- Named canaries for simple pass/fail examples, coverage threshold behavior, and rollback evidence are guidance-only unless future fixtures are added.
+- Future fixture candidates: no-tests-run with zero evidence, infrastructure failure mislabeled PASS, optional BLOCKED hidden from evidence, required capability non-PASS treated as success, wrong `RunSpec.cwd`, secret in stdout/stderr/log artifact, and artifact path that is inside root but missing on disk.
+- Any future fixture additions must preserve the current rule that negative tests validate reviewer detection capability; they are not substitutes for current runtime evidence.
+
 ## Fixture Files
 
 All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the structure defined in the fixture README.
