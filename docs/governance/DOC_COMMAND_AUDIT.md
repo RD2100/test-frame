@@ -60,6 +60,7 @@ python -m cli.main check --profile miniapp.automator.real --evidence artifacts/m
 python -m cli.main check --profile h5.auth.staging --evidence artifacts/h5.auth.staging.json
 node scripts/h5-auth-login.mjs --out artifacts/h5-auth/storage-state.json
 python -m cli.main check --profile h5.auth.login.local --evidence artifacts/h5.auth.login.local.json
+python -m cli.main check --profile h5.auth.login.staging.real --evidence artifacts/h5.auth.login.staging.real.json
 python -m cli.main check --profile cloud.device.matrix.real --evidence artifacts/cloud.device.matrix.real.json
 python -m cli.main check --profile cloud.device.provider.auth.real --evidence artifacts/cloud.device.provider.auth.real.json
 python -m cli.main check --capability miniapp.automator.endpoint --required miniapp.automator.endpoint --evidence artifacts/miniapp.endpoint.required.json
@@ -113,6 +114,21 @@ Added 2026-06-14 for `P1-H5-AUTH-LOGIN-EXECUTION-SKELETON-A1`.
 | `h5.auth.login.local` | `playwright.cli`, `playwright.browser.chromium`, `h5.auth.login.local`, `h5.auth.storage_state.generated` | Browser tooling can execute the repo-local fake auth login and produce structurally valid storageState. | Real site reachability, real login success, credential validity, backend authorization, business H5 E2E, or full regression coverage. |
 
 Hard rule: `h5.auth.login.local` is repo-local only. It must not visit staging or production, submit real credentials, commit generated storageState, or report real auth/business E2E success. Evidence must omit passwords, cookie values, and localStorage values.
+
+## P1 H5 Real Staging Login Opt-in Skeleton
+
+Added 2026-06-14 for `P1-H5-REAL-STAGING-LOGIN-OPTIN-A1`.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `h5.auth.login.staging` | Only when `H5_REAL_LOGIN=true`, the configured staging login selectors complete and write a storageState file. | Long-term account validity, complete authorization, session freshness, business H5 E2E, or regression coverage. |
+| `h5.auth.storage_state.staging.generated` | The generated staging storageState file exists and matches the Playwright `cookies`/`origins` shape. | Cookie/token validity, backend acceptance, or user authorization. |
+
+| Profile | Required capabilities | What it proves when PASS | What it does not prove |
+|---|---|---|---|
+| `h5.auth.login.staging.real` | `playwright.cli`, `playwright.browser.chromium`, `h5.staging.env`, `h5.auth.env`, `h5.auth.login.staging`, `h5.auth.storage_state.staging.generated` | Browser tooling, staging URL shape, auth env, explicit opt-in login execution, and generated staging storageState shape all passed. | Business H5 E2E, full permission coverage, session freshness, long-term account validity, or shared-CI readiness. |
+
+Hard rule: `h5.auth.login.staging.real` is explicit opt-in only. Without `H5_REAL_LOGIN=true`, it must be `BLOCKED` and must not access staging. It must not visit production, submit credentials by default, commit generated storageState, or report business E2E success. Evidence must omit username, password, full URL query, cookie values, and localStorage values.
 
 ## P1 Cloud Device Matrix Contract Gate Skeleton
 
@@ -223,7 +239,7 @@ Hard rule: `metersphere.testplan.real` is an explicit required profile only. It 
 | `UNSUPPORTED` | 当前平台或项目暂不支持 |
 | `NOT_REQUIRED` | 本轮 profile 未要求该能力 |
 
-当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`h5.staging.env`、`h5.auth.env`、`h5.auth.storage_state`、`h5.auth.login.local`、`h5.auth.storage_state.generated`、`cloud.device.env`、`cloud.device.matrix.contract`、`cloud.device.provider.fake`、`cloud.device.provider.auth`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`、`metersphere.fake.contract`、`metersphere.real.auth`、`metersphere.testplan.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`h5.auth.staging` 只证明显式 required 的 H5 auth/staging readiness probes 通过，不证明真实登录、站点可达或业务 E2E 已通过；`h5.auth.login.local` 只证明 repo-local fake auth fixture 登录和 storageState 生成链路，不证明真实 staging 登录或业务 E2E；`cloud.device.matrix.contract` 只证明本地 fake cloud-device matrix contract 和状态映射，不证明真实云真机执行或兼容性覆盖；`cloud.device.provider.auth` 只证明显式启用后的 provider auth readiness，不证明设备容量、上传、任务创建或兼容性执行；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接；`metersphere.fake.contract` 只证明本地 adapter contract，不证明真实平台集成；`metersphere.testplan.env` 只证明 test plan id 已配置，不证明测试计划存在或执行成功。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
+当前 probe 覆盖：`android.adb.cli`、`android.adb.devices`、`maestro.cli`、`maestro.flow.contract`、`allure`、`playwright.cli`、`playwright.browser.chromium`、`h5.staging.env`、`h5.auth.env`、`h5.auth.storage_state`、`h5.auth.login.local`、`h5.auth.storage_state.generated`、`h5.auth.login.staging`、`h5.auth.storage_state.staging.generated`、`cloud.device.env`、`cloud.device.matrix.contract`、`cloud.device.provider.fake`、`cloud.device.provider.auth`、`miniapp.devtools.path`、`miniapp.devtools.cli`、`miniapp.automator.sdk`、`miniapp.automator.endpoint`、`metersphere.env`、`metersphere.fake.contract`、`metersphere.real.auth`、`metersphere.testplan.env`。其中 `playwright.cli` 只证明 Playwright CLI/package 可用，不证明浏览器二进制或 H5 E2E 已通过；`h5.auth.staging` 只证明显式 required 的 H5 auth/staging readiness probes 通过，不证明真实登录、站点可达或业务 E2E 已通过；`h5.auth.login.local` 只证明 repo-local fake auth fixture 登录和 storageState 生成链路，不证明真实 staging 登录或业务 E2E；`h5.auth.login.staging` 只证明显式 opt-in 后的一次 staging 登录和 storageState 生成，不证明账号长期有效、业务权限完整或回归通过；`cloud.device.matrix.contract` 只证明本地 fake cloud-device matrix contract 和状态映射，不证明真实云真机执行或兼容性覆盖；`cloud.device.provider.auth` 只证明显式启用后的 provider auth readiness，不证明设备容量、上传、任务创建或兼容性执行；`miniapp.devtools.path` 只证明微信开发者工具路径配置状态，不证明 automator endpoint 可连接；`metersphere.fake.contract` 只证明本地 adapter contract，不证明真实平台集成；`metersphere.testplan.env` 只证明 test plan id 已配置，不证明测试计划存在或执行成功。没有外部工具时，baseline preflight 可以继续通过，但 evidence 必须明确记录 `BLOCKED`；若通过 `--required` 指定为必需能力，`BLOCKED/FAILED/UNSUPPORTED` 会导致命令失败。
 
 后续若要把这些从“行业可自动化但当前不能测”变成 TestFrame 能力，应优先补：
 

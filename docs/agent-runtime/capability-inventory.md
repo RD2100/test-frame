@@ -263,6 +263,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-AUTH-LOGIN-EXECUTION-SKELETON-A1`; real H5 staging login still needs separate review.
 - **Boundary note**: profile PASS proves only repo-local fake auth login execution and generated storageState shape; it does not prove real site reachability, credential validity, backend authorization, session freshness, business H5 E2E, or full regression coverage.
 
+## 23. H5 Real Staging Login Opt-in Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/explicit_network_auth | **Risk**: high
+- **Preferred for**: explicitly validating real staging login only after human-approved env and selector configuration are present
+- **Forbidden for**: default baseline execution, production login, committing generated storageState, storing usernames/passwords/cookies/localStorage values/full URL queries in evidence, or claiming business H5 E2E success
+- **Fallback**: `h5.auth.login.staging.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (real credentials, real staging execution, shared CI promotion, or storing reusable auth state) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile h5.auth.login.staging.real --evidence artifacts/h5.auth.login.staging.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-REAL-STAGING-LOGIN-OPTIN-A1`; production login and shared CI required execution still need separate review.
+- **Boundary note**: profile PASS proves only one explicitly enabled staging login execution and generated storageState shape; it does not prove long-term account validity, full authorization, session freshness, business H5 E2E, or regression coverage.
+
 ---
 
 ## Summary
@@ -291,6 +303,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 20 | Cloud Device Matrix Contract Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 21 | Cloud Device Provider Auth Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 22 | H5 Auth Login Execution Skeleton | Both | validation | medium | approved | local_probe |
+| 23 | H5 Real Staging Login Opt-in Skeleton | Both | validation | high | approved | local_probe |
 
 ### Status Legend
 

@@ -43,6 +43,15 @@ H5_AUTH_LOGIN_LOCAL_CAPABILITIES = [
     "h5.auth.storage_state.generated",
 ]
 
+H5_AUTH_LOGIN_STAGING_CAPABILITIES = [
+    "playwright.cli",
+    "playwright.browser.chromium",
+    "h5.staging.env",
+    "h5.auth.env",
+    "h5.auth.login.staging",
+    "h5.auth.storage_state.staging.generated",
+]
+
 CLOUD_DEVICE_MATRIX_CAPABILITIES = [
     "cloud.device.env",
     "cloud.device.matrix.contract",
@@ -85,6 +94,10 @@ def _set_h5_auth_staging_providers(monkeypatch, states: dict[str, tuple[str, str
 
 def _set_h5_auth_login_local_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, H5_AUTH_LOGIN_LOCAL_CAPABILITIES, states)
+
+
+def _set_h5_auth_login_staging_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, H5_AUTH_LOGIN_STAGING_CAPABILITIES, states)
 
 
 def _set_cloud_device_matrix_providers(monkeypatch, states: dict[str, tuple[str, str]]):
@@ -561,6 +574,84 @@ def test_optional_h5_auth_login_local_capability_all_still_allows_blocked_result
 
     assert result.exit_code == 0
     assert "[BLOCKED] h5.auth.login.local: node not found in PATH" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_h5_auth_login_staging_real_profile_expands_to_required_capabilities():
+    assert resolve_profile("h5.auth.login.staging.real") == H5_AUTH_LOGIN_STAGING_CAPABILITIES
+
+
+def test_h5_auth_login_staging_profile_blocks_when_real_login_is_not_enabled(monkeypatch):
+    _set_h5_auth_login_staging_providers(
+        monkeypatch,
+        {"h5.auth.login.staging": ("BLOCKED", "real H5 staging login is not enabled")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.login.staging.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] h5.auth.login.staging: real H5 staging login is not enabled" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_h5_auth_login_staging_profile_blocks_when_staging_url_is_missing(monkeypatch):
+    _set_h5_auth_login_staging_providers(
+        monkeypatch,
+        {"h5.staging.env": ("BLOCKED", "missing H5 staging base URL")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.login.staging.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] h5.staging.env: missing H5 staging base URL" in result.output
+
+
+def test_h5_auth_login_staging_profile_fails_when_login_script_fails(monkeypatch):
+    _set_h5_auth_login_staging_providers(
+        monkeypatch,
+        {"h5.auth.login.staging": ("FAILED", "H5 staging auth login script failed")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "h5.auth.login.staging.real"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] h5.auth.login.staging: H5 staging auth login script failed" in result.output
+
+
+def test_h5_auth_login_staging_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_h5_auth_login_staging_providers(monkeypatch, {})
+    evidence_path = tmp_path / "h5.auth.login.staging.real.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "h5.auth.login.staging.real",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] h5.auth.login.staging.real" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == H5_AUTH_LOGIN_STAGING_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_h5_auth_login_staging_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_h5_auth_login_staging_providers(
+        monkeypatch,
+        {"h5.auth.login.staging": ("BLOCKED", "real H5 staging login is not enabled")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] h5.auth.login.staging: real H5 staging login is not enabled" in result.output
     assert "[OK] Capability check completed" in result.output
 
 

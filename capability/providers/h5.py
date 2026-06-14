@@ -16,11 +16,21 @@ STAGING_BASE_URL_ENV = "H5_STAGING_BASE_URL"
 AUTH_ENVS = ("H5_AUTH_USERNAME", "H5_AUTH_PASSWORD")
 STORAGE_STATE_ENV = "H5_AUTH_STORAGE_STATE"
 LOCAL_STORAGE_STATE_ENV = "H5_AUTH_LOCAL_STORAGE_STATE"
+REAL_LOGIN_ENABLE_ENV = "H5_REAL_LOGIN"
+STAGING_STORAGE_STATE_ENV = "H5_AUTH_STAGING_STORAGE_STATE"
+STAGING_SELECTOR_ENVS = (
+    "H5_AUTH_USERNAME_SELECTOR",
+    "H5_AUTH_PASSWORD_SELECTOR",
+    "H5_AUTH_SUBMIT_SELECTOR",
+    "H5_AUTH_SUCCESS_SELECTOR",
+)
 LOCAL_AUTH_DEMO_PASSWORD = "demo-password"
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_AUTH_FIXTURE = REPO_ROOT / "examples" / "app-h5-auth" / "index.html"
 LOCAL_AUTH_SCRIPT = REPO_ROOT / "scripts" / "h5-auth-login.mjs"
 LOCAL_AUTH_STORAGE_STATE = REPO_ROOT / "artifacts" / "h5-auth" / "storage-state.json"
+STAGING_AUTH_SCRIPT = REPO_ROOT / "scripts" / "h5-staging-login.mjs"
+STAGING_AUTH_STORAGE_STATE = REPO_ROOT / "artifacts" / "h5-auth" / "staging-storage-state.json"
 
 
 def _clean_env_value(name: str) -> str:
@@ -303,9 +313,13 @@ def _local_auth_command_evidence(command: CommandEvidence, output_path: Path) ->
     }
 
 
-def _generated_storage_state_evidence(path: Path, summary: dict | None = None) -> dict:
+def _generated_storage_state_evidence(
+    path: Path,
+    summary: dict | None = None,
+    env: str = LOCAL_STORAGE_STATE_ENV,
+) -> dict:
     return {
-        "env": LOCAL_STORAGE_STATE_ENV,
+        "env": env,
         "output_path_present": True,
         "path_exists": path.exists(),
         "path_is_file": path.is_file(),
@@ -465,6 +479,300 @@ def probe_auth_storage_state_generated(required: bool = False) -> CapabilityResu
         required=required,
         reason="H5 generated auth storageState file is present and valid",
         evidence=_generated_storage_state_evidence(path, summary),
+    )
+
+
+def _real_login_enabled() -> bool:
+    return _clean_env_value(REAL_LOGIN_ENABLE_ENV).lower() in {"1", "true", "yes"}
+
+
+def _staging_storage_state_path() -> Path:
+    configured_path = _clean_env_value(STAGING_STORAGE_STATE_ENV)
+    if not configured_path:
+        return STAGING_AUTH_STORAGE_STATE
+    path = Path(configured_path).expanduser()
+    if path.is_absolute():
+        return path
+    return REPO_ROOT / path
+
+
+def _selector_evidence(missing: list[str]) -> dict:
+    return {
+        "selector_status": {
+            "items": [
+                {"name": name, "provided": name not in missing}
+                for name in STAGING_SELECTOR_ENVS
+            ],
+            "missing_count": len(missing),
+            "provided_count": len(STAGING_SELECTOR_ENVS) - len(missing),
+        },
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "environment variable missing" if missing else "",
+    }
+
+
+def _valid_staging_url_result(url: str, required: bool) -> CapabilityResult | None:
+    if not url:
+        return _blocked(
+            "h5.auth.login.staging",
+            required,
+            "missing H5 staging base URL",
+            {
+                "env": STAGING_BASE_URL_ENV,
+                "url": {"provided": False},
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "environment variable missing",
+            },
+        )
+    parsed = urlparse(url)
+    evidence = _url_evidence(url)
+    try:
+        parsed.port
+    except ValueError:
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging base URL is not a valid http(s) URL",
+            evidence={**evidence, "stderr": "invalid URL"},
+        )
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging base URL is not a valid http(s) URL",
+            evidence={**evidence, "stderr": "invalid URL"},
+        )
+    return None
+
+
+def _staging_auth_text(text: str, output_path: Path) -> str:
+    cleaned = redact_string(text)
+    for secret in (_clean_env_value("H5_AUTH_USERNAME"), _clean_env_value("H5_AUTH_PASSWORD")):
+        if secret:
+            cleaned = cleaned.replace(secret, "[REDACTED]")
+    output_paths = {str(output_path)}
+    repo_paths = {str(STAGING_AUTH_SCRIPT)}
+    try:
+        output_paths.add(str(output_path.resolve()))
+        repo_paths.add(str(STAGING_AUTH_SCRIPT.resolve()))
+    except OSError:
+        pass
+    for path in output_paths:
+        if path:
+            cleaned = cleaned.replace(path, "[OUTPUT_PATH]")
+    for path in repo_paths:
+        if path:
+            cleaned = cleaned.replace(path, "[REPO_PATH]")
+    return summarize(cleaned)
+
+
+def _staging_auth_command_evidence(command: CommandEvidence, output_path: Path) -> dict:
+    sanitized_command: list[str] = []
+    redact_next = False
+    for item in command.command:
+        if redact_next:
+            sanitized_command.append("[OUTPUT_PATH]")
+            redact_next = False
+            continue
+        if item == str(STAGING_AUTH_SCRIPT):
+            sanitized_command.append("scripts/h5-staging-login.mjs")
+            continue
+        sanitized_command.append(item)
+        if item == "--out":
+            redact_next = True
+    return {
+        "command": sanitized_command,
+        "exit_code": command.exit_code,
+        "stdout": _staging_auth_text(command.stdout, output_path),
+        "stderr": _staging_auth_text(command.stderr, output_path),
+    }
+
+
+def probe_auth_login_staging(required: bool = False) -> CapabilityResult:
+    if not _real_login_enabled():
+        return _blocked(
+            "h5.auth.login.staging",
+            required,
+            "real H5 staging login is not enabled",
+            {
+                "enable_env": REAL_LOGIN_ENABLE_ENV,
+                "real_login_enabled": False,
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "explicit opt-in missing",
+            },
+        )
+
+    url = _clean_env_value(STAGING_BASE_URL_ENV)
+    url_result = _valid_staging_url_result(url, required)
+    if url_result:
+        return url_result
+
+    auth_values = {name: _clean_env_value(name) for name in AUTH_ENVS}
+    missing_auth = [name for name, value in auth_values.items() if not value]
+    if missing_auth:
+        return _blocked(
+            "h5.auth.login.staging",
+            required,
+            "missing H5 auth environment variables",
+            _env_evidence(AUTH_ENVS, missing_auth),
+        )
+
+    missing_selectors = [
+        name for name in STAGING_SELECTOR_ENVS
+        if not _clean_env_value(name)
+    ]
+    if missing_selectors:
+        return _blocked(
+            "h5.auth.login.staging",
+            required,
+            "missing H5 auth selector environment variables",
+            _selector_evidence(missing_selectors),
+        )
+
+    output_path = _staging_storage_state_path()
+    if not STAGING_AUTH_SCRIPT.exists():
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging auth login script is missing",
+            evidence={
+                "script": {"path": "scripts/h5-staging-login.mjs", "exists": False},
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "script file not found",
+            },
+        )
+
+    resolved_node = resolve_executable("node")
+    if not resolved_node:
+        return _blocked(
+            "h5.auth.login.staging",
+            required,
+            "node not found in PATH",
+            {
+                "command": ["node", "scripts/h5-staging-login.mjs", "--out", "[OUTPUT_PATH]"],
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "executable not found",
+            },
+        )
+
+    command = [resolved_node, str(STAGING_AUTH_SCRIPT), "--out", str(output_path)]
+    evidence = run_command(command, timeout=60)
+    command_evidence = _staging_auth_command_evidence(evidence, output_path)
+    base_evidence = {**_url_evidence(url), **_selector_evidence([])}
+    if evidence.exit_code != 0:
+        combined_output = f"{evidence.stdout}\n{evidence.stderr}"
+        if evidence.exit_code is None or _looks_like_missing_browser(combined_output):
+            return _blocked(
+                "h5.auth.login.staging",
+                required,
+                "Chromium browser binary is not installed; run npx playwright install chromium",
+                {**base_evidence, **command_evidence},
+            )
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging auth login script failed",
+            evidence={**base_evidence, **command_evidence},
+        )
+
+    if not output_path.exists() or not output_path.is_file():
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging auth login did not generate storageState",
+            evidence={
+                **base_evidence,
+                **_generated_storage_state_evidence(output_path, env=STAGING_STORAGE_STATE_ENV),
+                **command_evidence,
+            },
+        )
+
+    try:
+        summary = _storage_state_summary(json.loads(output_path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, ValueError) as exc:
+        return CapabilityResult(
+            capability="h5.auth.login.staging",
+            status="FAILED",
+            required=required,
+            reason="H5 staging auth login generated invalid storageState",
+            evidence={
+                **base_evidence,
+                **_generated_storage_state_evidence(output_path, env=STAGING_STORAGE_STATE_ENV),
+                **command_evidence,
+                "storage_state_error": str(exc),
+            },
+        )
+
+    return CapabilityResult(
+        capability="h5.auth.login.staging",
+        status="PASS",
+        required=required,
+        reason="H5 staging auth login completed and generated storageState",
+        evidence={
+            **base_evidence,
+            **_generated_storage_state_evidence(output_path, summary, STAGING_STORAGE_STATE_ENV),
+            **command_evidence,
+        },
+    )
+
+
+def probe_auth_storage_state_staging_generated(required: bool = False) -> CapabilityResult:
+    path = _staging_storage_state_path()
+    if not path.exists() or not path.is_file():
+        return _blocked(
+            "h5.auth.storage_state.staging.generated",
+            required,
+            "H5 generated staging auth storageState file does not exist",
+            {
+                **_generated_storage_state_evidence(path, env=STAGING_STORAGE_STATE_ENV),
+                "stderr": "storageState file not found",
+            },
+        )
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return CapabilityResult(
+            capability="h5.auth.storage_state.staging.generated",
+            status="FAILED",
+            required=required,
+            reason="H5 generated staging auth storageState file is not valid JSON",
+            evidence={
+                **_generated_storage_state_evidence(path, env=STAGING_STORAGE_STATE_ENV),
+                "stderr": str(exc),
+            },
+        )
+
+    try:
+        summary = _storage_state_summary(payload)
+    except ValueError as exc:
+        return CapabilityResult(
+            capability="h5.auth.storage_state.staging.generated",
+            status="FAILED",
+            required=required,
+            reason="H5 generated staging auth storageState JSON does not match Playwright shape",
+            evidence={
+                **_generated_storage_state_evidence(path, env=STAGING_STORAGE_STATE_ENV),
+                "stderr": str(exc),
+            },
+        )
+
+    return CapabilityResult(
+        capability="h5.auth.storage_state.staging.generated",
+        status="PASS",
+        required=required,
+        reason="H5 generated staging auth storageState file is present and valid",
+        evidence=_generated_storage_state_evidence(path, summary, STAGING_STORAGE_STATE_ENV),
     )
 
 

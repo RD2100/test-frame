@@ -115,6 +115,8 @@ def test_h5_auth_capabilities_are_scoped():
     assert "h5.auth.storage_state" in PROVIDERS
     assert "h5.auth.login.local" in PROVIDERS
     assert "h5.auth.storage_state.generated" in PROVIDERS
+    assert "h5.auth.login.staging" in PROVIDERS
+    assert "h5.auth.storage_state.staging.generated" in PROVIDERS
     assert "h5.auth" not in PROVIDERS
     assert "h5.staging" not in PROVIDERS
 

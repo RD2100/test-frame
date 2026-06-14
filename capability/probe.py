@@ -25,6 +25,8 @@ PROVIDERS: dict[str, Provider] = {
     "h5.auth.storage_state": h5.probe_auth_storage_state,
     "h5.auth.login.local": h5.probe_auth_login_local,
     "h5.auth.storage_state.generated": h5.probe_auth_storage_state_generated,
+    "h5.auth.login.staging": h5.probe_auth_login_staging,
+    "h5.auth.storage_state.staging.generated": h5.probe_auth_storage_state_staging_generated,
     "cloud.device.env": cloud_device.probe_env,
     "cloud.device.matrix.contract": cloud_device.probe_matrix_contract,
     "cloud.device.provider.fake": cloud_device.probe_provider_fake,

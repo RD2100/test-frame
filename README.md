@@ -58,6 +58,14 @@ python -m cli.main check --profile h5.auth.login.local --evidence artifacts\h5.a
 
 `h5.auth.login.local` requires `playwright.cli`, `playwright.browser.chromium`, `h5.auth.login.local`, and `h5.auth.storage_state.generated` to PASS. It only proves Chromium can complete the repo-local fake auth fixture and generate a structurally valid Playwright storageState. It does not prove real staging login, credential validity, backend authorization, business H5 E2E, cookie freshness, or full regression coverage. Generated storageState belongs under `artifacts/` and must not be committed.
 
+For explicit real staging login opt-in, use:
+
+```powershell
+python -m cli.main check --profile h5.auth.login.staging.real --evidence artifacts\h5.auth.login.staging.real.json
+```
+
+`h5.auth.login.staging.real` requires `H5_REAL_LOGIN=true`, `H5_STAGING_BASE_URL`, `H5_AUTH_USERNAME`, `H5_AUTH_PASSWORD`, and the selector envs `H5_AUTH_USERNAME_SELECTOR`, `H5_AUTH_PASSWORD_SELECTOR`, `H5_AUTH_SUBMIT_SELECTOR`, `H5_AUTH_SUCCESS_SELECTOR`. Without explicit opt-in it must remain `BLOCKED`. Profile PASS proves only that one explicitly enabled staging login generated a structurally valid storageState; it does not prove long-term account validity, complete authorization, business H5 E2E, session freshness, or regression coverage. Generated staging storageState belongs under `artifacts/` and must not be committed.
+
 ## P1 Cloud Device Matrix Contract Boundaries
 
 Cloud device compatibility readiness is split into env, local matrix contract, and fake provider layers:
