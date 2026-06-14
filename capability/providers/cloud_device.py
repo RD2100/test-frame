@@ -6,9 +6,12 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+
+import requests
 
 from aggregator.adapters import cloud_device_adapter
-from capability.schema import CapabilityResult
+from capability.schema import CapabilityResult, REDACTION
 
 
 REQUIRED_ENV = (
@@ -18,6 +21,9 @@ REQUIRED_ENV = (
     "CLOUD_DEVICE_MATRIX_FILE",
 )
 MATRIX_FILE_ENV = "CLOUD_DEVICE_MATRIX_FILE"
+REAL_AUTH_ENABLE_ENV = "CLOUD_DEVICE_REAL_AUTH"
+AUTH_URL_ENV = "CLOUD_DEVICE_AUTH_URL"
+REAL_AUTH_SUPPORTED_PROVIDERS = {"browserstack", "firebase-test-lab", "maestro-cloud"}
 
 FAKE_MATRIX_REQUEST: dict[str, Any] = {
     "provider": "fake",
@@ -213,6 +219,158 @@ def probe_matrix_contract(required: bool = False) -> CapabilityResult:
 
 def probe_provider_fake(required: bool = False) -> CapabilityResult:
     return _run_fake_contract("cloud.device.provider.fake", required, FAKE_MATRIX_REQUEST)
+
+
+def _real_auth_enabled() -> bool:
+    return _clean_env_value(REAL_AUTH_ENABLE_ENV).lower() in {"1", "true", "yes"}
+
+
+def _auth_url_evidence(url: str, status_code: int | None = None, stderr: str = "") -> dict:
+    parsed = urlparse(url)
+    return {
+        "env": AUTH_URL_ENV,
+        "provider_auth_url": {
+            "provided": bool(url),
+            "scheme": parsed.scheme,
+            "hostname_present": bool(parsed.hostname),
+            "path_present": bool(parsed.path and parsed.path != "/"),
+            "query_present": bool(parsed.query),
+        },
+        "headers": {
+            "Authorization": REDACTION,
+            "X-Project-Id": REDACTION,
+        },
+        "status_code": status_code,
+        "exit_code": status_code,
+        "stdout": "",
+        "stderr": stderr,
+    }
+
+
+def _auth_success_payload(payload: dict[str, Any]) -> bool:
+    if payload.get("authenticated") is True:
+        return True
+    if payload.get("success") is True:
+        return True
+    if payload.get("ok") is True:
+        return True
+    return str(payload.get("status") or "").strip().lower() in {"authenticated", "ok", "success"}
+
+
+def _request_exception_summary(exc: requests.RequestException) -> str:
+    return f"{exc.__class__.__name__}: provider auth request failed"
+
+
+def probe_provider_auth(required: bool = False) -> CapabilityResult:
+    values, missing = _env_values()
+    if missing:
+        return _blocked(
+            "cloud.device.provider.auth",
+            required,
+            "missing cloud device environment variables",
+            _env_evidence(missing),
+        )
+    if not _real_auth_enabled():
+        return _blocked(
+            "cloud.device.provider.auth",
+            required,
+            "real cloud device auth probe is not enabled",
+            {
+                **_env_evidence(missing),
+                "enable_env": REAL_AUTH_ENABLE_ENV,
+                "real_auth_enabled": False,
+            },
+        )
+
+    provider = values["CLOUD_DEVICE_PROVIDER"].strip().lower()
+    if provider not in REAL_AUTH_SUPPORTED_PROVIDERS:
+        return _blocked(
+            "cloud.device.provider.auth",
+            required,
+            "cloud device provider real auth is not supported",
+            {
+                **_env_evidence(missing),
+                "provider": provider,
+                "supported_providers": sorted(REAL_AUTH_SUPPORTED_PROVIDERS),
+            },
+        )
+
+    auth_url = _clean_env_value(AUTH_URL_ENV)
+    if not auth_url:
+        return _blocked(
+            "cloud.device.provider.auth",
+            required,
+            "missing cloud device auth URL",
+            {
+                "env": AUTH_URL_ENV,
+                "provider_auth_url": {"provided": False},
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "environment variable missing",
+            },
+        )
+
+    parsed = urlparse(auth_url)
+    evidence = _auth_url_evidence(auth_url)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return CapabilityResult(
+            capability="cloud.device.provider.auth",
+            status="FAILED",
+            required=required,
+            reason="cloud device auth URL is not a valid http(s) URL",
+            evidence={**evidence, "stderr": "invalid URL"},
+        )
+
+    headers = {
+        "Authorization": f"Bearer {values['CLOUD_DEVICE_TOKEN']}",
+        "X-Project-Id": values["CLOUD_DEVICE_PROJECT_ID"],
+    }
+    try:
+        response = requests.get(auth_url, headers=headers, timeout=15)
+    except requests.RequestException as exc:
+        return _blocked(
+            "cloud.device.provider.auth",
+            required,
+            "cloud device provider auth endpoint is unreachable",
+            _auth_url_evidence(auth_url, None, _request_exception_summary(exc)),
+        )
+
+    evidence = _auth_url_evidence(auth_url, response.status_code)
+    if response.status_code != 200:
+        return CapabilityResult(
+            capability="cloud.device.provider.auth",
+            status="FAILED",
+            required=required,
+            reason=f"cloud device provider auth returned HTTP {response.status_code}",
+            evidence=evidence,
+        )
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        return CapabilityResult(
+            capability="cloud.device.provider.auth",
+            status="FAILED",
+            required=required,
+            reason="cloud device provider auth response is not JSON",
+            evidence={**evidence, "stderr": str(exc)},
+        )
+    if not isinstance(payload, dict) or not _auth_success_payload(payload):
+        return CapabilityResult(
+            capability="cloud.device.provider.auth",
+            status="FAILED",
+            required=required,
+            reason="cloud device provider auth response is not recognized",
+            evidence=evidence,
+        )
+
+    return CapabilityResult(
+        capability="cloud.device.provider.auth",
+        status="PASS",
+        required=required,
+        reason="cloud device provider auth probe passed",
+        evidence={**evidence, "response_keys": sorted(payload.keys())},
+    )
 
 
 def probe(required: bool = False) -> CapabilityResult:

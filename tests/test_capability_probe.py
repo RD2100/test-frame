@@ -121,6 +121,7 @@ def test_cloud_device_capabilities_are_scoped():
     assert "cloud.device.env" in PROVIDERS
     assert "cloud.device.matrix.contract" in PROVIDERS
     assert "cloud.device.provider.fake" in PROVIDERS
+    assert "cloud.device.provider.auth" in PROVIDERS
     assert "cloud.device" not in PROVIDERS
     assert "cloud.device.matrix" not in PROVIDERS
 

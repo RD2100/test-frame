@@ -27,6 +27,10 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "cloud.device.env",
         "cloud.device.matrix.contract",
     ),
+    "cloud.device.provider.auth.real": (
+        "cloud.device.env",
+        "cloud.device.provider.auth",
+    ),
     "metersphere.testplan.real": (
         "metersphere.env",
         "metersphere.real.auth",

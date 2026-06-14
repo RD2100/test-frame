@@ -67,6 +67,14 @@ python -m cli.main check --profile cloud.device.matrix.real --evidence artifacts
 
 `cloud.device.matrix.real` requires `cloud.device.env` and `cloud.device.matrix.contract` to PASS. It does not call BrowserStack, Firebase Test Lab, Maestro Cloud, or any cloud provider; it does not upload APK/IPA/test packages and must not be reported as real compatibility coverage or cloud-device execution success.
 
+For explicit cloud provider auth readiness, use:
+
+```powershell
+python -m cli.main check --profile cloud.device.provider.auth.real --evidence artifacts\cloud.device.provider.auth.real.json
+```
+
+`cloud.device.provider.auth.real` requires `cloud.device.env` and `cloud.device.provider.auth` to PASS. `cloud.device.provider.auth` is BLOCKED unless `CLOUD_DEVICE_REAL_AUTH=true` is set and `CLOUD_DEVICE_AUTH_URL` is configured. Profile PASS proves only provider auth readiness; it does not prove device capacity, app upload, matrix job creation, test execution, compatibility coverage, or billing safety.
+
 ## P1 Android ADB and Maestro Probe Boundaries
 
 Android automation is split into environment layers:

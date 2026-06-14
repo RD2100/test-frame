@@ -41,6 +41,11 @@ CLOUD_DEVICE_MATRIX_CAPABILITIES = [
     "cloud.device.matrix.contract",
 ]
 
+CLOUD_DEVICE_AUTH_CAPABILITIES = [
+    "cloud.device.env",
+    "cloud.device.provider.auth",
+]
+
 
 def _provider(capability: str, status: str, reason: str = "ok"):
     def run(required: bool = False) -> CapabilityResult:
@@ -73,6 +78,10 @@ def _set_h5_auth_staging_providers(monkeypatch, states: dict[str, tuple[str, str
 
 def _set_cloud_device_matrix_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, CLOUD_DEVICE_MATRIX_CAPABILITIES, states)
+
+
+def _set_cloud_device_auth_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, CLOUD_DEVICE_AUTH_CAPABILITIES, states)
 
 
 def _set_providers(monkeypatch, capabilities: list[str], states: dict[str, tuple[str, str]]):
@@ -541,4 +550,82 @@ def test_optional_cloud_device_capability_all_still_allows_blocked_results(monke
 
     assert result.exit_code == 0
     assert "[BLOCKED] cloud.device.env: missing cloud device environment variables" in result.output
+    assert "[OK] Capability check completed" in result.output
+
+
+def test_cloud_device_provider_auth_real_profile_expands_to_required_capabilities():
+    assert resolve_profile("cloud.device.provider.auth.real") == CLOUD_DEVICE_AUTH_CAPABILITIES
+
+
+def test_cloud_device_auth_profile_blocks_when_env_is_missing(monkeypatch):
+    _set_cloud_device_auth_providers(
+        monkeypatch,
+        {"cloud.device.env": ("BLOCKED", "missing cloud device environment variables")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.provider.auth.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] cloud.device.env: missing cloud device environment variables" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_cloud_device_auth_profile_blocks_when_real_auth_is_not_enabled(monkeypatch):
+    _set_cloud_device_auth_providers(
+        monkeypatch,
+        {"cloud.device.provider.auth": ("BLOCKED", "real cloud device auth probe is not enabled")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.provider.auth.real"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] cloud.device.provider.auth: real cloud device auth probe is not enabled" in result.output
+
+
+def test_cloud_device_auth_profile_fails_on_http_auth_failure(monkeypatch):
+    _set_cloud_device_auth_providers(
+        monkeypatch,
+        {"cloud.device.provider.auth": ("FAILED", "cloud device provider auth returned HTTP 401")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "cloud.device.provider.auth.real"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] cloud.device.provider.auth: cloud device provider auth returned HTTP 401" in result.output
+
+
+def test_cloud_device_auth_profile_passes_when_all_required_capabilities_pass(monkeypatch, tmp_path):
+    _set_cloud_device_auth_providers(monkeypatch, {})
+    evidence_path = tmp_path / "cloud.device.provider.auth.real.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "cloud.device.provider.auth.real",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "[PROFILE] cloud.device.provider.auth.real" in result.output
+    assert "[OK] Capability check completed" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert [item["capability"] for item in payload["results"]] == CLOUD_DEVICE_AUTH_CAPABILITIES
+    assert all(item["required"] is True for item in payload["results"])
+    assert all(item["status"] == "PASS" for item in payload["results"])
+
+
+def test_optional_cloud_device_auth_capability_all_still_allows_blocked_results(monkeypatch):
+    _set_cloud_device_auth_providers(
+        monkeypatch,
+        {"cloud.device.provider.auth": ("BLOCKED", "real cloud device auth probe is not enabled")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--capability", "all"])
+
+    assert result.exit_code == 0
+    assert "[BLOCKED] cloud.device.provider.auth: real cloud device auth probe is not enabled" in result.output
     assert "[OK] Capability check completed" in result.output

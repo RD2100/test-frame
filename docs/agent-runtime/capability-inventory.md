@@ -239,6 +239,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-CLOUD-DEVICE-MATRIX-CONTRACT-A1`; real cloud-device execution still needs separate review.
 - **Boundary note**: profile PASS proves only cloud-device env presence and local matrix contract validity; it does not prove provider auth, quota, upload, real device execution, compatibility coverage, or billing-safe readiness.
 
+## 21. Cloud Device Provider Auth Profile Gate Skeleton
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/opt_in_network_auth | **Risk**: medium
+- **Preferred for**: explicitly validating provider-auth readiness before any real cloud-device execution or upload work
+- **Forbidden for**: uploading APK/IPA/test packages, creating provider jobs, consuming quota, storing provider tokens/project ids/auth URL query values in evidence, or claiming real compatibility coverage
+- **Fallback**: `cloud.device.provider.auth.real` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (real provider execution, app upload, quota-consuming runs, shared CI promotion, or storing provider credentials) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile cloud.device.provider.auth.real --evidence artifacts/cloud.device.provider.auth.real.json`
+- **Status**: approved
+- **Approval note**: enabled under user authorization on 2026-06-14 for `P1-CLOUD-DEVICE-PROVIDER-AUTH-SKELETON-A1`; real cloud-device execution still needs separate review.
+- **Boundary note**: profile PASS proves only env presence and explicit provider-auth readiness; it does not prove quota, device capacity, upload success, matrix job creation, real device execution, compatibility coverage, or billing-safe readiness.
+
 ---
 
 ## Summary
@@ -265,6 +277,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 18 | MeterSphere Test-Plan Real Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 19 | H5 Auth Staging Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 20 | Cloud Device Matrix Contract Gate Skeleton | Both | validation | medium | approved | local_probe |
+| 21 | Cloud Device Provider Auth Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

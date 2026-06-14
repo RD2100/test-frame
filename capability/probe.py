@@ -26,6 +26,7 @@ PROVIDERS: dict[str, Provider] = {
     "cloud.device.env": cloud_device.probe_env,
     "cloud.device.matrix.contract": cloud_device.probe_matrix_contract,
     "cloud.device.provider.fake": cloud_device.probe_provider_fake,
+    "cloud.device.provider.auth": cloud_device.probe_provider_auth,
     "miniapp.devtools.path": miniapp.probe_path,
     "miniapp.devtools.cli": miniapp.probe_cli,
     "miniapp.automator.sdk": miniapp.probe_sdk,
