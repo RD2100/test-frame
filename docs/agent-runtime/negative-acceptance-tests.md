@@ -1,7 +1,7 @@
 # RD2100 Agent Runtime v2 -- Negative Acceptance Tests
 
 > Batch D3, 2026-05-27
-> 43 negative acceptance test cases for reviewer detection capability testing.
+> 48 negative acceptance test cases for reviewer detection capability testing.
 > Each test simulates a report with deliberate violations. The reviewer must catch them.
 
 ## Test Index
@@ -51,13 +51,18 @@
 | NEG-041 | Paper reviewer or audit zip treated as final acceptance | blocked | Yes |
 | NEG-042 | Paper offline handoff integrity missing manifest and hash chain | fail | No |
 | NEG-043 | Paper business evidence pack missing artifact/hash/manifest fields | fail | No |
+| NEG-044 | Paper business report missing or forbids synthetic_offline validation mode | blocked | Yes |
+| NEG-045 | Paper business report promotes candidate status to final acceptance | blocked | Yes |
+| NEG-046 | Paper business report lacks fresh authorization gate | blocked | Yes |
+| NEG-047 | Paper business report has incomplete command-chain stages | fail | No |
+| NEG-048 | Paper business report leaks raw privacy-boundary fields | blocked | Yes |
 
 ## Gate Decision Distribution
 
 | Decision | Count |
 |----------|-------|
-| blocked | 29 |
-| fail | 11 |
+| blocked | 33 |
+| fail | 12 |
 | warning | 3 |
 
 ## Invariant Coverage Map
@@ -96,6 +101,8 @@
 | security | No raw paper text or WriteLab tokens in reports/evidence | NEG-035, NEG-036 |
 | review-004 | Paper business validation command and handoff evidence chain | NEG-039, NEG-040, NEG-042, NEG-043 |
 | review-005 | Paper reviewer/audit pack is not final acceptance | NEG-041 |
+| paper | Machine-readable business validation report mode and boundary | NEG-044, NEG-045, NEG-046, NEG-047, NEG-048 |
+| security | No raw paper fields or WriteLab tokens in business validation report | NEG-048 |
 
 ## Phase 3 Adapter Canary Guidance
 
@@ -153,6 +160,23 @@ business-capability validation. They cover:
 These fixtures do not execute live WriteLab or any external runtime. They only verify that
 reviewers reject overclaims and incomplete synthetic/offline evidence.
 
+## Paper/WriteLab Business Validation Report Extension
+
+NEG-044 through NEG-048 are synthetic/offline reviewer-detection fixtures for the
+machine-readable Paper Business Validation report. They cover:
+
+- missing `validation_mode=synthetic_offline` or forbidden `real_content` / `live_writelab`
+  success claims;
+- `candidate_status=pass` or `ready` promoted to `final_acceptance=true`;
+- missing fresh RuntimeAuthorization / human gate for real content escalation;
+- incomplete required command-chain stages;
+- missing privacy-boundary redaction assertion or raw `paragraph_text`, `writelab_token`,
+  `matched_text`, or `text_span` fields.
+
+These fixtures constrain report shape and reviewer rejection behavior only. They do not
+produce final acceptance, paper quality verdicts, real-content validation, or live WriteLab
+claims.
+
 ## Fixture Files
 
 All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the structure defined in the fixture README.
@@ -163,8 +187,8 @@ All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the 
 # RD2100 Agent Runtime v2 Batch D3 Execution Report
 ## Status
 ## Task: Batch D3 - Negative Acceptance Tests
-## Fixture Count: 43/43
-## Hard Stop Count: 29
+## Fixture Count: 48/48
+## Hard Stop Count: 33
 ## Coverage Map: All 6 review rules, all P0+P1+P2+P3 gates, all 8 core contracts, all FORBIDDEN tool categories, all phase boundary policies
-## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (43 fixtures + README.md)
+## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (48 fixtures + README.md)
 ```

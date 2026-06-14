@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-047",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P1",
+  "scenario": "A machine-readable paper business validation report omits one or more required command-chain stages.",
+  "input_report_features": "business_validation_report.json has command_chain=['create','run','report','audit'] and candidate_status='ready'. It omits one or more required stages from create/run/go/resume/status/list/ledger/evidence/validate/report/audit/verify/checkpoint/verify-chain, and the report does not mark the missing stages as blocked or intentionally waived with reviewer evidence.",
+  "expected_gate_decision": "fail",
+  "expected_findings": [
+    "Command chain is incomplete for paper business validation report",
+    "Missing required create/run/go/resume/status/list/ledger/evidence/validate/report/audit/verify/checkpoint/verify-chain evidence",
+    "Missing stages were not explicitly blocked, waived, or reviewer-approved",
+    "candidate_status cannot be ready when required command-chain evidence is absent"
+  ],
+  "related_invariant": "paper:business-validation-report, integration-contracts:RunSpec, review-004",
+  "hard_stop": false,
+  "canary_tags": [
+    "incomplete-command-chain",
+    "required-stage-missing",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "RunSpec",
+    "TestExecutionReport"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

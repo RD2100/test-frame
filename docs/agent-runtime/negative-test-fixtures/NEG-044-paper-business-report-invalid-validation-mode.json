@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-044",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P0",
+  "scenario": "A machine-readable paper business validation report omits validation_mode or reports real_content/live_writelab as passing evidence.",
+  "input_report_features": "business_validation_report.json has candidate_status='pass' but validation_mode is missing or set to 'live_writelab'. The report claims real content was validated and treats the live mode as acceptable without a RuntimeAuthorization record, even though this validation phase only permits synthetic_offline evidence.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "Missing or forbidden validation_mode for paper business validation report",
+    "validation_mode must be synthetic_offline for this phase",
+    "real_content or live_writelab evidence cannot be accepted without explicit RuntimeAuthorization",
+    "test-frame must not claim live WriteLab or real-paper validation success"
+  ],
+  "related_invariant": "paper:business-validation-report, RuntimeAuthorization, tool-policy:external-runtime-forbidden, review-001",
+  "hard_stop": true,
+  "canary_tags": [
+    "invalid-validation-mode",
+    "live-writelab-overclaim",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "RuntimeAuthorization",
+    "ExecutionReport"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

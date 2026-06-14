@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-048",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P0",
+  "scenario": "A machine-readable paper business validation report lacks privacy-boundary redaction assertions or contains raw sensitive paper fields.",
+  "input_report_features": "business_validation_report.json has privacy_boundary.redaction_assertion missing, while report_details includes paragraph_text='REAL_PAPER_PARAGRAPH_FIXTURE_SHOULD_BE_REDACTED', matched_text='sensitive excerpt', text_span='12-88', and writelab_token='FAKE_WRITELAB_TOKEN_DO_NOT_USE'. The report still claims privacy_boundary.status='pass'.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "Privacy boundary redaction assertion is missing",
+    "Machine-readable report contains raw paragraph_text, matched_text, text_span, or writelab_token",
+    "Privacy status contradicts sensitive field leakage",
+    "Business validation reports must contain redacted summaries, hashes, and manifests, not raw paper content or tokens"
+  ],
+  "related_invariant": "sec-001, paper:privacy-boundary, paper:business-validation-report, review-001",
+  "hard_stop": true,
+  "canary_tags": [
+    "privacy-boundary-leak",
+    "raw-paper-field",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "EvidenceManifest",
+    "ReviewerEvidencePack"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

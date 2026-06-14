@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-046",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P0",
+  "scenario": "A machine-readable paper business validation report disables or omits the fresh authorization gate required before real content or live WriteLab use.",
+  "input_report_features": "business_validation_report.json sets runtime_authorization_required_for_real_content=false and has no authorization_gate.fresh_authorization, no human_gate_ref, and no RuntimeAuthorization artifact. The report still marks candidate_status='pass' and states that the same result may be reused for real paper text later.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "runtime_authorization_required_for_real_content must not be false",
+    "Fresh authorization gate is missing for real content or live WriteLab escalation",
+    "Synthetic/offline evidence cannot be reused as real-content authorization",
+    "Missing RuntimeAuthorization or human_gate_ref boundary record"
+  ],
+  "related_invariant": "RuntimeAuthorization, paper:authorization-gate, paper:business-validation-report, sec-001",
+  "hard_stop": true,
+  "canary_tags": [
+    "missing-fresh-authorization-gate",
+    "runtime-authorization-required",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "RuntimeAuthorization",
+    "EvidenceManifest"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

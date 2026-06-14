@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-045",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P0",
+  "scenario": "A machine-readable paper business validation report promotes candidate_status pass or ready into final_acceptance=true.",
+  "input_report_features": "business_validation_report.json contains validation_mode='synthetic_offline', candidate_status='ready', final_acceptance=true, and final_acceptance_source='test-frame'. No independent reviewer_decision, human acceptance record, or final approval authority is attached. The report asks downstream systems to treat the candidate as accepted.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "candidate_status was promoted to final_acceptance without independent approval",
+    "test-frame is not a final acceptance source",
+    "Machine-readable report must keep final_acceptance false or absent unless a separate authorized reviewer record exists",
+    "Synthetic/offline validation can only produce verification evidence"
+  ],
+  "related_invariant": "review-005, paper:final-acceptance-boundary, PaperBusinessValidationReport",
+  "hard_stop": true,
+  "canary_tags": [
+    "candidate-status-final-acceptance",
+    "self-approval",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "ExecutionReport",
+    "ReviewerEvidencePack"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

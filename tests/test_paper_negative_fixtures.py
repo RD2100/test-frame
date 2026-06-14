@@ -75,6 +75,31 @@ PAPER_FIXTURE_IDS = {
         "decision": "fail",
         "tag": "business-manifest-incomplete",
     },
+    "NEG-044": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "invalid-validation-mode",
+    },
+    "NEG-045": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "candidate-status-final-acceptance",
+    },
+    "NEG-046": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "missing-fresh-authorization-gate",
+    },
+    "NEG-047": {
+        "gate_level": "P1",
+        "decision": "fail",
+        "tag": "incomplete-command-chain",
+    },
+    "NEG-048": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "privacy-boundary-leak",
+    },
 }
 
 REQUIRED_FIELDS = {
@@ -98,9 +123,9 @@ def _load_fixtures() -> list[dict]:
 def test_all_negative_fixtures_keep_core_contract_shape():
     fixtures = _load_fixtures()
 
-    assert len(fixtures) == 43
+    assert len(fixtures) == 48
     assert {fixture["test_id"] for fixture in fixtures} == {
-        f"NEG-{index:03d}" for index in range(1, 44)
+        f"NEG-{index:03d}" for index in range(1, 49)
     }
     for fixture in fixtures:
         assert REQUIRED_FIELDS <= set(fixture), fixture["test_id"]
@@ -135,7 +160,7 @@ def test_paper_writelab_p0_fixtures_are_hard_stops():
     fixtures = {
         fixture["test_id"]: fixture
         for fixture in _load_fixtures()
-        if fixture.get("domain") == "paper_writelab_redacted_reviewer_pack"
+        if fixture.get("domain", "").startswith("paper_writelab_")
     }
 
     for fixture in fixtures.values():
