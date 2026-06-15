@@ -264,3 +264,13 @@ Added 2026-06-15 for the module GPT handoff loop.
 | `tgm.miniapp.positive_pilot.prereq` | `tgm.miniapp.runtime_authorization`, `tgm.miniapp.devtools.path`, `tgm.miniapp.automator.package`, `tgm.miniapp.endpoint.policy`, `tgm.miniapp.artifact.policy` | Positive pilot prerequisites are configured for a prerequisite probe only. | Real MiniApp E2E, WeChat DevTools launch, automator endpoint connection, login, route coverage, selector assertions, or release readiness. |
 
 Hard rule: `tgm.miniapp.positive_pilot.prereq` must not launch WeChat DevTools, connect an automator endpoint, run Jest E2E, or report Real MiniApp E2E ready. Missing RuntimeAuthorization or environment configuration must remain `BLOCKED`/`FAILED`, never `PASS`.
+
+## TESTFRAME-EVIDENCE-PACK-MANIFEST-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main evidence validate --pack <zip>` | The evidence ZIP contains required handoff reports, command summary, git patch, manifest JSON, and raw evidence JSON. | Product success, real runtime success, or final acceptance. |
+
+Hard rule: evidence pack validation checks package shape only. `BLOCKED` or `FAILED` raw evidence can still be valid evidence and must not be promoted to `PASS`. Missing raw evidence JSON, missing git patch, or missing `EXECUTION_REPORT.md` / `REVIEWER_INDEX.md` is a packaging defect.

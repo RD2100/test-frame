@@ -162,5 +162,32 @@ def attribute(project, results_dir):
     click.echo(report)
 
 
+@cli.group()
+def evidence():
+    """Evidence package utilities."""
+    pass
+
+
+@evidence.command("validate")
+@click.option("--pack", required=True, help="Evidence ZIP package to validate")
+def validate_evidence_pack(pack):
+    """Validate module GPT evidence package shape."""
+    from tools.validate_evidence_pack import validate_pack
+
+    result = validate_pack(pack)
+    status = "PASS" if result.passed else "FAILED"
+    click.echo(f"[{status}] Evidence pack validation")
+    if result.missing_required:
+        click.echo(f"Missing required entries: {', '.join(result.missing_required)}")
+    if not result.has_git_patch:
+        click.echo("Missing git patch: git/show.patch or git/show-*.patch")
+    if not result.raw_evidence_json:
+        click.echo("Missing raw evidence JSON under evidence/")
+    for error in result.errors:
+        click.echo(f"- {error}")
+    if not result.passed:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()

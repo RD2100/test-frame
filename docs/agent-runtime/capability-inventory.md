@@ -287,6 +287,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PREREQ-A1`; real MiniApp E2E still needs separate RuntimeAuthorization.
 - **Boundary note**: profile PASS proves only positive pilot prerequisites and `real_env_probe_only` authorization; it does not prove WeChat DevTools launch, automator connection, route coverage, login, selector assertions, business E2E, or release readiness.
 
+## 25. Module GPT Evidence Pack Manifest Gate
+- **Platform**: Both
+- **Type**: validation | **Access**: local_zip_manifest_validation | **Risk**: low
+- **Preferred for**: checking that module GPT handoff ZIP packages include reports, reviewer index, status summary, command summary, git patch, manifest JSON, and raw evidence JSON
+- **Forbidden for**: treating evidence package presence as product PASS, rewriting test results, or turning `BLOCKED`/`FAILED` evidence into success
+- **Fallback**: `python -m cli.main evidence validate --pack <zip>` exits non-zero with missing entries listed
+- **Human gate**: no for local package shape validation; yes if package contents require external runtime, secrets, or cross-module schemas | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main evidence validate --pack artifacts/evidence-pack.zip`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-EVIDENCE-PACK-MANIFEST-A1`.
+- **Boundary note**: validator proves package completeness only; `BLOCKED` and `FAILED` can be valid evidence states and must not be promoted to PASS.
+
 ---
 
 ## Summary
@@ -317,6 +329,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 22 | H5 Auth Login Execution Skeleton | Both | validation | medium | approved | local_probe |
 | 23 | H5 Real Staging Login Opt-in Skeleton | Both | validation | high | approved | local_probe |
 | 24 | Time Goal Manager MiniApp Positive Pilot Prerequisite Gate | Both | validation | medium | approved | local_probe |
+| 25 | Module GPT Evidence Pack Manifest Gate | Both | validation | low | approved | local_zip_manifest_validation |
 
 ### Status Legend
 
