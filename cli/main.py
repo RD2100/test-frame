@@ -112,7 +112,8 @@ def check(project, capability_name, capability_profile, required, evidence):
         if capability_profile:
             click.echo(f"[PROFILE] {capability_profile}: required {', '.join(resolve_profile(capability_profile))}")
         for result in results:
-            click.echo(f"[{result.status}] {result.capability}: {result.reason}")
+            suffix = f" (reason_code={result.reason_code})" if result.reason_code else ""
+            click.echo(f"[{result.status}] {result.capability}: {result.reason}{suffix}")
 
         if evidence:
             output_path = write_evidence(

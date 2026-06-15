@@ -99,6 +99,13 @@ def _first_reason(results: list[CapabilityResult], status: str) -> str:
     return ""
 
 
+def _first_reason_code(results: list[CapabilityResult], status: str) -> str:
+    for result in results:
+        if result.status == status:
+            return result.reason_code
+    return ""
+
+
 def _find_evidence(results: list[CapabilityResult], key: str) -> object | None:
     for result in results:
         if key in result.evidence:
@@ -124,7 +131,9 @@ def write_evidence(
             "profile_name": profile_name,
             "status": _overall_status(result_list),
             "blocked_reason": _first_reason(result_list, "BLOCKED"),
+            "blocked_reason_code": _first_reason_code(result_list, "BLOCKED"),
             "failed_reason": _first_reason(result_list, "FAILED"),
+            "failed_reason_code": _first_reason_code(result_list, "FAILED"),
             "capability_results": payload["results"],
             "runtime_authorization": _find_evidence(result_list, "runtime_authorization"),
             "permits_real_e2e": False,

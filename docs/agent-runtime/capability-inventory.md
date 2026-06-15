@@ -286,6 +286,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Status**: approved
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PREREQ-A1`; real MiniApp E2E still needs separate RuntimeAuthorization.
 - **Boundary note**: profile PASS proves only positive pilot prerequisites and `real_env_probe_only` authorization; it does not prove WeChat DevTools launch, automator connection, route coverage, login, selector assertions, business E2E, or release readiness.
+- **Reason-code note**: `tgm.miniapp.positive_pilot.prereq` emits local test-frame evidence `reason_code` values for BLOCKED/FAILED prerequisite states (`RUNTIME_AUTHORIZATION_MISSING`, `WECHAT_DEVTOOLS_PATH_MISSING`, `AUTOMATOR_PACKAGE_MISSING`, `ENDPOINT_POLICY_MISSING`, `ARTIFACT_ROOT_MISSING`, `RUNTIME_AUTHORIZATION_INVALID`, `WECHAT_DEVTOOLS_PATH_INVALID`, `ENDPOINT_POLICY_INVALID`, `ARTIFACT_PATH_OUT_OF_SCOPE`). These codes are verification evidence only, not a global agent-acceptance GateResult schema.
 
 ## 25. Module GPT Evidence Pack Manifest Gate
 - **Platform**: Both

@@ -237,6 +237,7 @@ def test_tgm_runtime_authorization_blocks_when_missing(monkeypatch):
 
     assert result.status == "BLOCKED"
     assert result.required is True
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_MISSING"
     assert result.evidence["runtime_authorization"]["permits_real_e2e"] is False
 
 
@@ -247,8 +248,29 @@ def test_tgm_runtime_authorization_passes_for_probe_only(monkeypatch):
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
     assert result.status == "PASS"
+    assert result.reason_code == ""
     assert result.evidence["runtime_authorization"]["value"] == "real_env_probe_only"
     assert result.evidence["runtime_authorization"]["permits_real_e2e"] is False
+
+
+def test_tgm_runtime_authorization_fails_for_invalid_value(monkeypatch):
+    _clear_miniapp_env(monkeypatch)
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "live_now")
+
+    result = miniapp.probe_tgm_runtime_authorization(required=True)
+
+    assert result.status == "FAILED"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_INVALID"
+
+
+def test_tgm_runtime_authorization_blocks_dry_run_only(monkeypatch):
+    _clear_miniapp_env(monkeypatch)
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "dry_run_only")
+
+    result = miniapp.probe_tgm_runtime_authorization(required=True)
+
+    assert result.status == "BLOCKED"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_DRY_RUN_ONLY"
 
 
 def test_tgm_runtime_authorization_blocks_real_e2e_for_prereq_profile(monkeypatch):
@@ -258,6 +280,7 @@ def test_tgm_runtime_authorization_blocks_real_e2e_for_prereq_profile(monkeypatc
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
     assert result.status == "BLOCKED"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_REAL_E2E_NOT_ALLOWED"
     assert "exceeds this prerequisite-only profile" in result.reason
     assert result.evidence["runtime_authorization"]["requested_authorization_exceeds_profile"] is True
 
@@ -274,6 +297,26 @@ def test_tgm_devtools_path_omits_raw_local_path(monkeypatch, tmp_path):
     assert str(tmp_path) not in str(result.evidence)
 
 
+def test_tgm_devtools_path_blocks_when_missing(monkeypatch):
+    _clear_miniapp_env(monkeypatch)
+
+    result = miniapp.probe_tgm_devtools_path(required=True)
+
+    assert result.status == "BLOCKED"
+    assert result.reason_code == "WECHAT_DEVTOOLS_PATH_MISSING"
+
+
+def test_tgm_devtools_path_fails_when_configured_path_is_invalid(monkeypatch, tmp_path):
+    _clear_miniapp_env(monkeypatch)
+    monkeypatch.setenv("WECHAT_DEVTOOL_PATH", str(tmp_path / "missing"))
+
+    result = miniapp.probe_tgm_devtools_path(required=True)
+
+    assert result.status == "FAILED"
+    assert result.reason_code == "WECHAT_DEVTOOLS_PATH_INVALID"
+    assert "configured_path" not in result.evidence
+
+
 def test_tgm_endpoint_policy_fails_for_invalid_endpoint(monkeypatch):
     _clear_miniapp_env(monkeypatch)
     monkeypatch.setenv("MINIAPP_AUTOMATOR_ENDPOINT", "http://localhost:9420")
@@ -281,6 +324,7 @@ def test_tgm_endpoint_policy_fails_for_invalid_endpoint(monkeypatch):
     result = miniapp.probe_tgm_endpoint_policy(required=True)
 
     assert result.status == "FAILED"
+    assert result.reason_code == "ENDPOINT_POLICY_INVALID"
     assert result.evidence["endpoint_policy"]["does_not_connect_endpoint"] is True
 
 
@@ -297,6 +341,7 @@ def test_tgm_automator_package_sanitizes_local_paths(monkeypatch):
     result = miniapp.probe_tgm_automator_package(required=True)
 
     assert result.status == "BLOCKED"
+    assert result.reason_code == "AUTOMATOR_PACKAGE_MISSING"
     assert result.evidence["command"][0] == "node"
     assert str(miniapp.REPO_ROOT) not in result.evidence["stderr"]
     assert "[REPO_ROOT]" in result.evidence["stderr"] or "[CWD]" in result.evidence["stderr"]
@@ -313,12 +358,22 @@ def test_tgm_endpoint_policy_passes_without_connecting(monkeypatch):
     assert result.evidence["endpoint_policy"]["does_not_connect_endpoint"] is True
 
 
+def test_tgm_endpoint_policy_blocks_when_missing(monkeypatch):
+    _clear_miniapp_env(monkeypatch)
+
+    result = miniapp.probe_tgm_endpoint_policy(required=True)
+
+    assert result.status == "BLOCKED"
+    assert result.reason_code == "ENDPOINT_POLICY_MISSING"
+
+
 def test_tgm_artifact_policy_blocks_when_missing(monkeypatch):
     _clear_miniapp_env(monkeypatch)
 
     result = miniapp.probe_tgm_artifact_policy(required=True)
 
     assert result.status == "BLOCKED"
+    assert result.reason_code == "ARTIFACT_ROOT_MISSING"
     assert result.evidence["artifact_policy"]["within_allowed_root"] is False
 
 
@@ -330,6 +385,7 @@ def test_tgm_artifact_policy_fails_outside_allowed_root(monkeypatch, tmp_path):
     result = miniapp.probe_tgm_artifact_policy(required=True)
 
     assert result.status == "FAILED"
+    assert result.reason_code == "ARTIFACT_PATH_OUT_OF_SCOPE"
     assert result.evidence["artifact_policy"]["within_allowed_root"] is False
 
 

@@ -27,6 +27,17 @@ TGM_RUNTIME_AUTHORIZATION_VALUES = (
     "real_env_probe_only",
     "real_e2e_authorized",
 )
+RUNTIME_AUTHORIZATION_MISSING = "RUNTIME_AUTHORIZATION_MISSING"
+RUNTIME_AUTHORIZATION_DRY_RUN_ONLY = "RUNTIME_AUTHORIZATION_DRY_RUN_ONLY"
+RUNTIME_AUTHORIZATION_REAL_E2E_NOT_ALLOWED = "RUNTIME_AUTHORIZATION_REAL_E2E_NOT_ALLOWED"
+WECHAT_DEVTOOLS_PATH_MISSING = "WECHAT_DEVTOOLS_PATH_MISSING"
+AUTOMATOR_PACKAGE_MISSING = "AUTOMATOR_PACKAGE_MISSING"
+ENDPOINT_POLICY_MISSING = "ENDPOINT_POLICY_MISSING"
+ARTIFACT_ROOT_MISSING = "ARTIFACT_ROOT_MISSING"
+RUNTIME_AUTHORIZATION_INVALID = "RUNTIME_AUTHORIZATION_INVALID"
+WECHAT_DEVTOOLS_PATH_INVALID = "WECHAT_DEVTOOLS_PATH_INVALID"
+ENDPOINT_POLICY_INVALID = "ENDPOINT_POLICY_INVALID"
+ARTIFACT_PATH_OUT_OF_SCOPE = "ARTIFACT_PATH_OUT_OF_SCOPE"
 
 
 def _clean_env_value(value: str | None) -> str:
@@ -41,13 +52,20 @@ def _first_env(names: tuple[str, ...]) -> tuple[str | None, str]:
     return None, ""
 
 
-def _blocked(capability: str, required: bool, reason: str, evidence: dict) -> CapabilityResult:
+def _blocked(
+    capability: str,
+    required: bool,
+    reason: str,
+    evidence: dict,
+    reason_code: str = "",
+) -> CapabilityResult:
     return CapabilityResult(
         capability=capability,
         status="BLOCKED",
         required=required,
         reason=reason,
         evidence=evidence,
+        reason_code=reason_code,
     )
 
 
@@ -219,6 +237,7 @@ def probe_tgm_runtime_authorization(required: bool = False) -> CapabilityResult:
             required,
             "missing RuntimeAuthorization for time-goal-manager MiniApp positive pilot",
             {**evidence, "stderr": "environment variable missing"},
+            RUNTIME_AUTHORIZATION_MISSING,
         )
     if value not in TGM_RUNTIME_AUTHORIZATION_VALUES:
         return CapabilityResult(
@@ -227,6 +246,7 @@ def probe_tgm_runtime_authorization(required: bool = False) -> CapabilityResult:
             required=required,
             reason="RuntimeAuthorization value is not recognized",
             evidence={**evidence, "stderr": "invalid RuntimeAuthorization value"},
+            reason_code=RUNTIME_AUTHORIZATION_INVALID,
         )
     if value == "dry_run_only":
         return _blocked(
@@ -234,6 +254,7 @@ def probe_tgm_runtime_authorization(required: bool = False) -> CapabilityResult:
             required,
             "real MiniApp positive pilot is not authorized",
             evidence,
+            RUNTIME_AUTHORIZATION_DRY_RUN_ONLY,
         )
     if value == "real_e2e_authorized":
         return _blocked(
@@ -247,6 +268,7 @@ def probe_tgm_runtime_authorization(required: bool = False) -> CapabilityResult:
                     "requested_authorization_exceeds_profile": True,
                 },
             },
+            RUNTIME_AUTHORIZATION_REAL_E2E_NOT_ALLOWED,
         )
     return CapabilityResult(
         capability="tgm.miniapp.runtime_authorization",
@@ -271,14 +293,17 @@ def probe_tgm_devtools_path(required: bool = False) -> CapabilityResult:
                 "stdout": "",
                 "stderr": "environment variable missing",
             },
+            WECHAT_DEVTOOLS_PATH_MISSING,
         )
     evidence = _path_policy_evidence(env_name or "", configured_path, path)
     if not path.exists():
-        return _blocked(
-            "tgm.miniapp.devtools.path",
-            required,
-            "configured WeChat DevTools path does not exist",
-            {**evidence, "stderr": "configured path not found"},
+        return CapabilityResult(
+            capability="tgm.miniapp.devtools.path",
+            status="FAILED",
+            required=required,
+            reason="configured WeChat DevTools path does not exist",
+            evidence={**evidence, "stderr": "configured path not found"},
+            reason_code=WECHAT_DEVTOOLS_PATH_INVALID,
         )
     return CapabilityResult(
         capability="tgm.miniapp.devtools.path",
@@ -343,6 +368,7 @@ def probe_tgm_automator_package(required: bool = False) -> CapabilityResult:
                 "stdout": "",
                 "stderr": "executable not found",
             },
+            AUTOMATOR_PACKAGE_MISSING,
         )
 
     evidence = run_command([resolved_node, *command[1:]], timeout=15)
@@ -367,6 +393,7 @@ def probe_tgm_automator_package(required: bool = False) -> CapabilityResult:
         required,
         "miniprogram automator package could not be resolved",
         command_evidence,
+        AUTOMATOR_PACKAGE_MISSING,
     )
 
 
@@ -413,6 +440,7 @@ def probe_tgm_endpoint_policy(required: bool = False) -> CapabilityResult:
             required,
             "MINIAPP_AUTOMATOR_ENDPOINT is not set",
             {**evidence, "stderr": "endpoint not configured"},
+            ENDPOINT_POLICY_MISSING,
         )
     if endpoint_error:
         return CapabilityResult(
@@ -421,6 +449,7 @@ def probe_tgm_endpoint_policy(required: bool = False) -> CapabilityResult:
             required=required,
             reason=endpoint_error,
             evidence={**evidence, "stderr": "invalid endpoint policy"},
+            reason_code=ENDPOINT_POLICY_INVALID,
         )
     return CapabilityResult(
         capability="tgm.miniapp.endpoint.policy",
@@ -449,6 +478,7 @@ def probe_tgm_artifact_policy(required: bool = False) -> CapabilityResult:
                 "stdout": "",
                 "stderr": "environment variable missing",
             },
+            ARTIFACT_ROOT_MISSING,
         )
     path = Path(configured_path).expanduser()
     if not path.is_absolute():
@@ -479,6 +509,7 @@ def probe_tgm_artifact_policy(required: bool = False) -> CapabilityResult:
             required=required,
             reason="MiniApp positive pilot artifact root is outside the allowed artifacts directory",
             evidence={**evidence, "stderr": "artifact path outside allowed root"},
+            reason_code=ARTIFACT_PATH_OUT_OF_SCOPE,
         )
     return CapabilityResult(
         capability="tgm.miniapp.artifact.policy",

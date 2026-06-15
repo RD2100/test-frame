@@ -100,6 +100,7 @@ class CapabilityResult:
     required: bool
     reason: str
     evidence: dict[str, Any]
+    reason_code: str = ""
 
     def __post_init__(self) -> None:
         if self.status not in ALLOWED_STATUSES:
@@ -111,6 +112,7 @@ class CapabilityResult:
             "status": self.status,
             "required": self.required,
             "reason": self.reason,
+            "reason_code": self.reason_code,
             "evidence": redact_value(self.evidence),
         }
 

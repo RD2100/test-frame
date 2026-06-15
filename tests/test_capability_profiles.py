@@ -71,7 +71,7 @@ CLOUD_DEVICE_AUTH_CAPABILITIES = [
 ]
 
 
-def _provider(capability: str, status: str, reason: str = "ok"):
+def _provider(capability: str, status: str, reason: str = "ok", reason_code: str = ""):
     def run(required: bool = False) -> CapabilityResult:
         return CapabilityResult(
             capability=capability,
@@ -79,6 +79,7 @@ def _provider(capability: str, status: str, reason: str = "ok"):
             required=required,
             reason=reason,
             evidence={},
+            reason_code=reason_code,
         )
 
     return run
@@ -413,6 +414,79 @@ def test_tgm_miniapp_prereq_profile_writes_structured_evidence(monkeypatch, tmp_
     assert payload["endpoint_policy"]["does_not_connect_endpoint"] is True
     assert payload["artifact_policy"]["within_allowed_root"] is True
     assert [item["capability"] for item in payload["capability_results"]] == TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+
+
+def test_tgm_miniapp_prereq_profile_writes_blocked_reason_code(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        probe_module,
+        "PROVIDERS",
+        {
+            capability: _provider(capability, "PASS")
+            for capability in TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+        },
+    )
+    probe_module.PROVIDERS["tgm.miniapp.runtime_authorization"] = _provider(
+        "tgm.miniapp.runtime_authorization",
+        "BLOCKED",
+        "missing RuntimeAuthorization",
+        "RUNTIME_AUTHORIZATION_MISSING",
+    )
+    evidence_path = tmp_path / "tgm-miniapp-positive-pilot-prereq.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "tgm.miniapp.positive_pilot.prereq",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "reason_code=RUNTIME_AUTHORIZATION_MISSING" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "BLOCKED"
+    assert payload["blocked_reason_code"] == "RUNTIME_AUTHORIZATION_MISSING"
+    assert payload["failed_reason_code"] == ""
+    assert payload["capability_results"][0]["reason_code"] == "RUNTIME_AUTHORIZATION_MISSING"
+
+
+def test_tgm_miniapp_prereq_profile_writes_failed_reason_code(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        probe_module,
+        "PROVIDERS",
+        {
+            capability: _provider(capability, "PASS")
+            for capability in TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+        },
+    )
+    probe_module.PROVIDERS["tgm.miniapp.artifact.policy"] = _provider(
+        "tgm.miniapp.artifact.policy",
+        "FAILED",
+        "artifact root outside allowed directory",
+        "ARTIFACT_PATH_OUT_OF_SCOPE",
+    )
+    evidence_path = tmp_path / "tgm-miniapp-positive-pilot-prereq.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "tgm.miniapp.positive_pilot.prereq",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "reason_code=ARTIFACT_PATH_OUT_OF_SCOPE" in result.output
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["status"] == "FAILED"
+    assert payload["blocked_reason_code"] == ""
+    assert payload["failed_reason_code"] == "ARTIFACT_PATH_OUT_OF_SCOPE"
 
 
 def test_metersphere_testplan_real_profile_expands_to_required_capabilities():

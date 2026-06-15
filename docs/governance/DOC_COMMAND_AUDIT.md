@@ -265,6 +265,8 @@ Added 2026-06-15 for the module GPT handoff loop.
 
 Hard rule: `tgm.miniapp.positive_pilot.prereq` must not launch WeChat DevTools, connect an automator endpoint, run Jest E2E, or report Real MiniApp E2E ready. Missing RuntimeAuthorization or environment configuration must remain `BLOCKED`/`FAILED`, never `PASS`.
 
+Reason-code boundary: the profile writes stable local evidence fields `reason_code`, `blocked_reason_code`, and `failed_reason_code` for reviewer triage. These fields belong to test-frame verification evidence only; promoting them into an agent-acceptance GateResult or cross-module schema requires a separate integration TaskSpec.
+
 ## TESTFRAME-EVIDENCE-PACK-MANIFEST-A1
 
 Added 2026-06-15 for the module GPT local review loop.
