@@ -337,6 +337,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PLAN-A1`.
 - **Boundary note**: plan generation is not execution. `READY_FOR_REAL_ENV_PROBE` must keep `permits_real_e2e=false`; `READY_FOR_REAL_E2E_AUTHORIZED_RUN` is a future command template only and still requires a separate positive-pilot TaskSpec before execution.
 
+## 29. Time Goal Manager MiniApp Positive Pilot Dry Runner
+- **Platform**: Both
+- **Type**: planning | **Access**: local_dry_manifest_generation | **Risk**: medium
+- **Preferred for**: converting a positive-pilot plan JSON into a dry execution manifest that reviewers can inspect before real runtime authorization
+- **Forbidden for**: executing planned commands, launching WeChat DevTools, connecting automator endpoints, running Jest E2E, or claiming real execution success
+- **Fallback**: reviewer reads plan JSON directly and verifies all runtime steps remain template-only
+- **Human gate**: yes for any future real MiniApp runtime execution; no for local dry-runner manifest generation | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main pilot miniapp-positive-pilot-dry-run --plan reports/tgm-miniapp-positive-pilot-plan-real-env-probe-only.json --out artifacts/tgm-miniapp-positive-pilot-dry-run-manifest.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-DRY-RUNNER-A1`.
+- **Boundary note**: dry-runner output is not a real execution report. `executed_real_runtime` and every step's `actually_executed` must remain false.
+
 ---
 
 ## Summary
@@ -371,6 +383,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 26 | Time Goal Manager MiniApp Prerequisite Report | Both | reporting | low | approved | local_evidence_summary |
 | 27 | Time Goal Manager MiniApp RuntimeAuthorization Package | Both | validation | medium | approved | local_json_schema_validation |
 | 28 | Time Goal Manager MiniApp Positive Pilot Plan | Both | planning | medium | approved | local_plan_generation |
+| 29 | Time Goal Manager MiniApp Positive Pilot Dry Runner | Both | planning | medium | approved | local_dry_manifest_generation |
 
 ### Status Legend
 

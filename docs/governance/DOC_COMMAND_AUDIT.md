@@ -318,3 +318,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main plan miniapp-positive-pilot --prereq-evidence <json> --out <md> --json-out <json>` | The existing prerequisite evidence can be translated into a dry positive-pilot plan with status, planned steps, artifact manifest template, and runtime boundaries. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, selector coverage, login, or final acceptance. |
 
 Hard rule: plan generation is not execution. `READY_FOR_REAL_ENV_PROBE` must keep `permits_real_e2e=false` and must not include a real E2E execution step. `READY_FOR_REAL_E2E_AUTHORIZED_RUN` may list only a future command template and still needs a separate positive-pilot TaskSpec before any real runtime command is executed.
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-DRY-RUNNER-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main pilot miniapp-positive-pilot-dry-run --plan <plan-json> --out <manifest-json>` | A positive-pilot plan can be converted into a dry execution manifest with explicit skipped/runtime boundaries and prohibited action checks. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, or final acceptance. |
+
+Hard rule: dry-runner output is not a real execution report. `executed_real_runtime` must be false, every step must have `actually_executed=false`, and any `executes_real_runtime=true` step must remain template-only pending a separate positive-pilot execution TaskSpec.

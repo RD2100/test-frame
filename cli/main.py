@@ -240,5 +240,24 @@ def miniapp_positive_pilot_plan(prereq_evidence, out, json_out):
     click.echo(f"permits_real_e2e: {str(result['permits_real_e2e']).lower()}")
 
 
+@cli.group()
+def pilot():
+    """Pilot dry-run utilities."""
+    pass
+
+
+@pilot.command("miniapp-positive-pilot-dry-run")
+@click.option("--plan", "plan_path", required=True, help="Positive pilot plan JSON")
+@click.option("--out", required=True, help="Dry-run manifest JSON path")
+def miniapp_positive_pilot_dry_run(plan_path, out):
+    """Generate a dry execution manifest for a TGM MiniApp positive pilot plan."""
+    from tools.run_miniapp_positive_pilot_dry import run_dry
+
+    result = run_dry(plan_path, out)
+    click.echo(f"final_dry_run_verdict: {result['final_dry_run_verdict']}")
+    click.echo(f"executed_real_runtime: {str(result['executed_real_runtime']).lower()}")
+    click.echo(f"permits_real_e2e: {str(result['permits_real_e2e']).lower()}")
+
+
 if __name__ == "__main__":
     cli()
