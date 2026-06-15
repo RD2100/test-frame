@@ -1,0 +1,35 @@
+{
+  "task_id": "TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-INTEGRATION-A1",
+  "project_id": "time-goal-manager",
+  "module": "test-frame",
+  "profile": "tgm.miniapp.positive_pilot.prereq",
+  "authorization_type": "real_env_probe_only",
+  "requested_runtime": {
+    "wechat_devtools_cli": true,
+    "miniprogram_automator": true,
+    "automator_endpoint": true,
+    "miniapp_jest_e2e": false
+  },
+  "environment": {
+    "wechat_devtools_path_configured": true,
+    "automator_package_configured": true,
+    "endpoint_configured": true,
+    "artifact_root_configured": true
+  },
+  "safety_bounds": {
+    "no_production_data": true,
+    "no_destructive_actions": true,
+    "no_secret_logging": true,
+    "artifacts_under_allowed_root": true
+  },
+  "artifact_policy": {
+    "allowed_root": "artifacts/tgm-miniapp-positive-pilot",
+    "include_screenshots": false,
+    "include_videos": false,
+    "include_raw_logs": false
+  },
+  "expires_at": "",
+  "authorized_by": "",
+  "authorization_note": "Redacted real environment prerequisite probe only; does not authorize real MiniApp E2E.",
+  "permits_real_e2e": false
+}

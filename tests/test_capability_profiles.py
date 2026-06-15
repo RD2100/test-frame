@@ -416,6 +416,57 @@ def test_tgm_miniapp_prereq_profile_writes_structured_evidence(monkeypatch, tmp_
     assert [item["capability"] for item in payload["capability_results"]] == TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
 
 
+def test_tgm_miniapp_prereq_profile_can_record_real_e2e_authorization_without_running_e2e(monkeypatch, tmp_path):
+    def provider(capability: str):
+        def run(required: bool = False) -> CapabilityResult:
+            evidence = {}
+            reason_code = ""
+            if capability == "tgm.miniapp.runtime_authorization":
+                evidence["runtime_authorization"] = {
+                    "authorization_type": "real_e2e_authorized",
+                    "permits_real_e2e": True,
+                    "raw_values_redacted": True,
+                }
+                reason_code = "RUNTIME_AUTHORIZATION_REAL_E2E_AUTHORIZED"
+            return CapabilityResult(
+                capability=capability,
+                status="PASS",
+                required=required,
+                reason="ok",
+                evidence=evidence,
+                reason_code=reason_code,
+            )
+
+        return run
+
+    monkeypatch.setattr(
+        probe_module,
+        "PROVIDERS",
+        {
+            capability: provider(capability)
+            for capability in TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+        },
+    )
+    evidence_path = tmp_path / "tgm-miniapp-positive-pilot-prereq.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "tgm.miniapp.positive_pilot.prereq",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["runtime_authorization"]["authorization_type"] == "real_e2e_authorized"
+    assert payload["permits_real_e2e"] is True
+    assert "E2E executed" not in result.output
+
+
 def test_tgm_miniapp_prereq_profile_writes_blocked_reason_code(monkeypatch, tmp_path):
     monkeypatch.setattr(
         probe_module,

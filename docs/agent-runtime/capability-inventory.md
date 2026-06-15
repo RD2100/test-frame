@@ -286,7 +286,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Status**: approved
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PREREQ-A1`; real MiniApp E2E still needs separate RuntimeAuthorization.
 - **Boundary note**: profile PASS proves only positive pilot prerequisites and `real_env_probe_only` authorization; it does not prove WeChat DevTools launch, automator connection, route coverage, login, selector assertions, business E2E, or release readiness.
-- **Reason-code note**: `tgm.miniapp.positive_pilot.prereq` emits local test-frame evidence `reason_code` values for BLOCKED/FAILED prerequisite states (`RUNTIME_AUTHORIZATION_MISSING`, `WECHAT_DEVTOOLS_PATH_MISSING`, `AUTOMATOR_PACKAGE_MISSING`, `ENDPOINT_POLICY_MISSING`, `ARTIFACT_ROOT_MISSING`, `RUNTIME_AUTHORIZATION_INVALID`, `WECHAT_DEVTOOLS_PATH_INVALID`, `ENDPOINT_POLICY_INVALID`, `ARTIFACT_PATH_OUT_OF_SCOPE`). These codes are verification evidence only, not a global agent-acceptance GateResult schema.
+- **Reason-code note**: `tgm.miniapp.positive_pilot.prereq` emits local test-frame evidence `reason_code` values for BLOCKED/FAILED prerequisite states (`RUNTIME_AUTHORIZATION_MISSING`, `RUNTIME_AUTHORIZATION_FILE_MISSING`, `RUNTIME_AUTHORIZATION_DRY_RUN_ONLY`, `RUNTIME_AUTHORIZATION_INVALID`, `WECHAT_DEVTOOLS_PATH_MISSING`, `AUTOMATOR_PACKAGE_MISSING`, `ENDPOINT_POLICY_MISSING`, `ARTIFACT_ROOT_MISSING`, `WECHAT_DEVTOOLS_PATH_INVALID`, `ENDPOINT_POLICY_INVALID`, `ARTIFACT_PATH_OUT_OF_SCOPE`). `RUNTIME_AUTHORIZATION_REAL_ENV_PROBE_ONLY` and `RUNTIME_AUTHORIZATION_REAL_E2E_AUTHORIZED` are local PASS reason codes for authorization-file presence only. These codes are verification evidence only, not a global agent-acceptance GateResult schema.
 
 ## 25. Module GPT Evidence Pack Manifest Gate
 - **Platform**: Both
@@ -323,7 +323,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Evidence**: `python -m cli.main authorization validate --file docs/test-frame/tgm-miniapp-runtime-authorization.example.redacted.json`
 - **Status**: approved
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-PACK-A1`.
-- **Boundary note**: validator PASS means the authorization package shape and safety bounds are acceptable. It does not mean real E2E was executed, and it does not change `tgm.miniapp.positive_pilot.prereq` from BLOCKED without actual runtime environment variables and separate authorization.
+- **Boundary note**: validator PASS means the authorization package shape and safety bounds are acceptable. `TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE` lets the prerequisite profile read a redacted local authorization package and emit sanitized evidence. It does not mean real E2E was executed, and `real_env_probe_only` still sets `permits_real_e2e=false`. `real_e2e_authorized` is only recognized as an authorization record; a separate positive-pilot TaskSpec is still required before any real MiniApp E2E run.
 
 ---
 

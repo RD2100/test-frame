@@ -12,6 +12,7 @@ def _clear_miniapp_env(monkeypatch):
         "MINIAPP_AUTOMATOR_PACKAGE",
         "MINIAPP_AUTOMATOR_ENDPOINT",
         "TGM_MINIAPP_RUNTIME_AUTHORIZATION",
+        "TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE",
         "TGM_MINIAPP_ARTIFACT_ROOT",
     ):
         monkeypatch.delenv(name, raising=False)
@@ -239,23 +240,92 @@ def test_tgm_runtime_authorization_blocks_when_missing(monkeypatch):
     assert result.required is True
     assert result.reason_code == "RUNTIME_AUTHORIZATION_MISSING"
     assert result.evidence["runtime_authorization"]["permits_real_e2e"] is False
+    assert result.evidence["runtime_authorization"]["authorization_file_configured"] is False
 
 
-def test_tgm_runtime_authorization_passes_for_probe_only(monkeypatch):
+def _runtime_authorization_payload(authorization_type="real_env_probe_only", permits_real_e2e=False):
+    return {
+        "task_id": "TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-INTEGRATION-A1",
+        "project_id": "time-goal-manager",
+        "module": "test-frame",
+        "profile": "tgm.miniapp.positive_pilot.prereq",
+        "authorization_type": authorization_type,
+        "requested_runtime": {
+            "wechat_devtools_cli": authorization_type != "dry_run_only",
+            "miniprogram_automator": authorization_type != "dry_run_only",
+            "automator_endpoint": authorization_type != "dry_run_only",
+            "miniapp_jest_e2e": authorization_type == "real_e2e_authorized",
+        },
+        "environment": {
+            "wechat_devtools_path_configured": authorization_type != "dry_run_only",
+            "automator_package_configured": authorization_type != "dry_run_only",
+            "endpoint_configured": authorization_type != "dry_run_only",
+            "artifact_root_configured": authorization_type != "dry_run_only",
+        },
+        "safety_bounds": {
+            "no_production_data": True,
+            "no_destructive_actions": True,
+            "no_secret_logging": True,
+            "artifacts_under_allowed_root": True,
+        },
+        "artifact_policy": {
+            "allowed_root": "artifacts/tgm-miniapp-positive-pilot",
+            "include_screenshots": authorization_type == "real_e2e_authorized",
+            "include_videos": False,
+            "include_raw_logs": False,
+        },
+        "expires_at": "2026-06-16T00:00:00Z" if authorization_type == "real_e2e_authorized" else "",
+        "authorized_by": "human-reviewer" if authorization_type == "real_e2e_authorized" else "",
+        "authorization_note": "synthetic test authorization package",
+        "permits_real_e2e": permits_real_e2e,
+    }
+
+
+def _write_runtime_authorization(path, payload):
+    import json
+
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def test_tgm_runtime_authorization_blocks_when_file_is_missing(monkeypatch, tmp_path):
     _clear_miniapp_env(monkeypatch)
-    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "real_env_probe_only")
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(tmp_path / "missing.json"))
+
+    result = miniapp.probe_tgm_runtime_authorization(required=True)
+
+    assert result.status == "BLOCKED"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_FILE_MISSING"
+    assert result.evidence["runtime_authorization"]["authorization_file_configured"] is True
+    assert "missing.json" not in str(result.evidence)
+
+
+def test_tgm_runtime_authorization_passes_for_probe_only(monkeypatch, tmp_path):
+    _clear_miniapp_env(monkeypatch)
+    auth_file = _write_runtime_authorization(
+        tmp_path / "auth.json",
+        _runtime_authorization_payload("real_env_probe_only", permits_real_e2e=False),
+    )
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(auth_file))
 
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
     assert result.status == "PASS"
-    assert result.reason_code == ""
-    assert result.evidence["runtime_authorization"]["value"] == "real_env_probe_only"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_REAL_ENV_PROBE_ONLY"
+    assert result.evidence["runtime_authorization"]["authorization_type"] == "real_env_probe_only"
     assert result.evidence["runtime_authorization"]["permits_real_e2e"] is False
+    assert result.evidence["runtime_authorization"]["raw_values_redacted"] is True
+    assert "human-reviewer" not in str(result.evidence)
+    assert str(auth_file) not in str(result.evidence)
 
 
-def test_tgm_runtime_authorization_fails_for_invalid_value(monkeypatch):
+def test_tgm_runtime_authorization_fails_for_invalid_value(monkeypatch, tmp_path):
     _clear_miniapp_env(monkeypatch)
-    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "live_now")
+    auth_file = _write_runtime_authorization(
+        tmp_path / "auth.json",
+        _runtime_authorization_payload("live_now", permits_real_e2e=False),
+    )
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(auth_file))
 
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
@@ -263,9 +333,27 @@ def test_tgm_runtime_authorization_fails_for_invalid_value(monkeypatch):
     assert result.reason_code == "RUNTIME_AUTHORIZATION_INVALID"
 
 
-def test_tgm_runtime_authorization_blocks_dry_run_only(monkeypatch):
+def test_tgm_runtime_authorization_fails_for_unsafe_authorization_file(monkeypatch, tmp_path):
     _clear_miniapp_env(monkeypatch)
-    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "dry_run_only")
+    payload = _runtime_authorization_payload("real_env_probe_only", permits_real_e2e=False)
+    payload["authorization_note"] = "token" + "=" + "fake-raw-value"
+    auth_file = _write_runtime_authorization(tmp_path / "auth.json", payload)
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(auth_file))
+
+    result = miniapp.probe_tgm_runtime_authorization(required=True)
+
+    assert result.status == "FAILED"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_INVALID"
+    assert "fake-raw-value" not in str(result.evidence)
+
+
+def test_tgm_runtime_authorization_blocks_dry_run_only(monkeypatch, tmp_path):
+    _clear_miniapp_env(monkeypatch)
+    auth_file = _write_runtime_authorization(
+        tmp_path / "auth.json",
+        _runtime_authorization_payload("dry_run_only", permits_real_e2e=False),
+    )
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(auth_file))
 
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
@@ -273,16 +361,24 @@ def test_tgm_runtime_authorization_blocks_dry_run_only(monkeypatch):
     assert result.reason_code == "RUNTIME_AUTHORIZATION_DRY_RUN_ONLY"
 
 
-def test_tgm_runtime_authorization_blocks_real_e2e_for_prereq_profile(monkeypatch):
+def test_tgm_runtime_authorization_recognizes_real_e2e_without_executing(monkeypatch, tmp_path):
     _clear_miniapp_env(monkeypatch)
-    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION", "real_e2e_authorized")
+    auth_file = _write_runtime_authorization(
+        tmp_path / "auth.json",
+        _runtime_authorization_payload("real_e2e_authorized", permits_real_e2e=True),
+    )
+    monkeypatch.setenv("TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE", str(auth_file))
 
     result = miniapp.probe_tgm_runtime_authorization(required=True)
 
-    assert result.status == "BLOCKED"
-    assert result.reason_code == "RUNTIME_AUTHORIZATION_REAL_E2E_NOT_ALLOWED"
-    assert "exceeds this prerequisite-only profile" in result.reason
-    assert result.evidence["runtime_authorization"]["requested_authorization_exceeds_profile"] is True
+    assert result.status == "PASS"
+    assert result.reason_code == "RUNTIME_AUTHORIZATION_REAL_E2E_AUTHORIZED"
+    assert result.evidence["runtime_authorization"]["authorization_type"] == "real_e2e_authorized"
+    assert result.evidence["runtime_authorization"]["permits_real_e2e"] is True
+    assert result.evidence["runtime_authorization"]["authorized_by_present"] is True
+    assert result.evidence["runtime_authorization"]["expires_at_present"] is True
+    assert "human-reviewer" not in str(result.evidence)
+    assert str(auth_file) not in str(result.evidence)
 
 
 def test_tgm_devtools_path_omits_raw_local_path(monkeypatch, tmp_path):

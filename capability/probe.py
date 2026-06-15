@@ -113,6 +113,13 @@ def _find_evidence(results: list[CapabilityResult], key: str) -> object | None:
     return None
 
 
+def _permits_real_e2e(results: list[CapabilityResult]) -> bool:
+    runtime_authorization = _find_evidence(results, "runtime_authorization")
+    if isinstance(runtime_authorization, dict):
+        return runtime_authorization.get("permits_real_e2e") is True
+    return False
+
+
 def write_evidence(
     results: Iterable[CapabilityResult],
     output_path: str | Path,
@@ -127,6 +134,7 @@ def write_evidence(
         "results": [result.to_dict() for result in result_list],
     }
     if profile_name:
+        runtime_authorization = _find_evidence(result_list, "runtime_authorization")
         payload.update({
             "profile_name": profile_name,
             "status": _overall_status(result_list),
@@ -135,8 +143,8 @@ def write_evidence(
             "failed_reason": _first_reason(result_list, "FAILED"),
             "failed_reason_code": _first_reason_code(result_list, "FAILED"),
             "capability_results": payload["results"],
-            "runtime_authorization": _find_evidence(result_list, "runtime_authorization"),
-            "permits_real_e2e": False,
+            "runtime_authorization": runtime_authorization,
+            "permits_real_e2e": _permits_real_e2e(result_list),
             "artifact_policy": _find_evidence(result_list, "artifact_policy"),
             "endpoint_policy": _find_evidence(result_list, "endpoint_policy"),
             "command_invoked": command_invoked or [],

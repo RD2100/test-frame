@@ -253,7 +253,7 @@ Added 2026-06-15 for the module GPT handoff loop.
 
 | Capability | What it proves | What it does not prove |
 |---|---|---|
-| `tgm.miniapp.runtime_authorization` | `TGM_MINIAPP_RUNTIME_AUTHORIZATION=real_env_probe_only` is present for prerequisite probing. | Real MiniApp E2E permission, WeChat DevTools launch permission, or automator endpoint connection permission. |
+| `tgm.miniapp.runtime_authorization` | `TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE` points to a redacted RuntimeAuthorization JSON package that passes local validation and is summarized without raw values. | Real MiniApp E2E execution, WeChat DevTools launch permission, automator endpoint connection permission, or final acceptance. |
 | `tgm.miniapp.devtools.path` | A configured WeChat DevTools path exists. | CLI execution, project opening, or MiniApp E2E readiness. |
 | `tgm.miniapp.automator.package` | Node can resolve the configured miniprogram automator package. | DevTools is running, endpoint is reachable, or tests can execute. |
 | `tgm.miniapp.endpoint.policy` | `MINIAPP_AUTOMATOR_ENDPOINT` has a valid `ws://host:port` shape. | The endpoint was contacted or is reachable. |
@@ -263,7 +263,7 @@ Added 2026-06-15 for the module GPT handoff loop.
 |---|---|---|---|
 | `tgm.miniapp.positive_pilot.prereq` | `tgm.miniapp.runtime_authorization`, `tgm.miniapp.devtools.path`, `tgm.miniapp.automator.package`, `tgm.miniapp.endpoint.policy`, `tgm.miniapp.artifact.policy` | Positive pilot prerequisites are configured for a prerequisite probe only. | Real MiniApp E2E, WeChat DevTools launch, automator endpoint connection, login, route coverage, selector assertions, or release readiness. |
 
-Hard rule: `tgm.miniapp.positive_pilot.prereq` must not launch WeChat DevTools, connect an automator endpoint, run Jest E2E, or report Real MiniApp E2E ready. Missing RuntimeAuthorization or environment configuration must remain `BLOCKED`/`FAILED`, never `PASS`.
+Hard rule: `tgm.miniapp.positive_pilot.prereq` must not launch WeChat DevTools, connect an automator endpoint, run Jest E2E, or report Real MiniApp E2E ready. Missing RuntimeAuthorization file, `dry_run_only`, invalid authorization files, or missing environment configuration must remain `BLOCKED`/`FAILED`, never `PASS`. `real_env_probe_only` may pass only the runtime-authorization capability and must keep `permits_real_e2e=false`; `real_e2e_authorized` is only an authorization record and still requires a separate positive-pilot TaskSpec before any real E2E run.
 
 Reason-code boundary: the profile writes stable local evidence fields `reason_code`, `blocked_reason_code`, and `failed_reason_code` for reviewer triage. These fields belong to test-frame verification evidence only; promoting them into an agent-acceptance GateResult or cross-module schema requires a separate integration TaskSpec.
 
@@ -298,3 +298,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main authorization validate --file docs/test-frame/tgm-miniapp-runtime-authorization.example.redacted.json` | A redacted RuntimeAuthorization package has required fields, safe artifact policy, and no raw local paths or secret values. | Real MiniApp E2E authorization, WeChat DevTools launch permission in the current environment, automator endpoint reachability, or E2E execution success. |
 
 Hard rule: RuntimeAuthorization package validation is a format and safety-boundary gate only. `real_e2e_authorized` requires explicit user or main-control authorization, expiry, reviewer identity, safe artifact policy, and safety bounds; validation PASS must not be reported as real E2E PASS.
+
+## TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-INTEGRATION-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE=<redacted-json> python -m cli.main check --profile tgm.miniapp.positive_pilot.prereq --evidence <json>` | The prerequisite profile can read a local RuntimeAuthorization package, validate it, and emit sanitized authorization evidence with stable reason codes. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, route coverage, login, selector assertions, or final acceptance. |
+
+Hard rule: the profile evidence must not include raw `authorized_by`, `authorization_note`, local absolute paths, token/password/cookie/AppID secret values, or storageState payloads. RuntimeAuthorization capability PASS must be interpreted only as local authorization-file evidence; it does not authorize this task to execute real MiniApp E2E.
