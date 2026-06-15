@@ -259,5 +259,37 @@ def miniapp_positive_pilot_dry_run(plan_path, out):
     click.echo(f"permits_real_e2e: {str(result['permits_real_e2e']).lower()}")
 
 
+@cli.group()
+def manifest():
+    """Artifact manifest utilities."""
+    pass
+
+
+@manifest.group("miniapp-positive-pilot")
+def miniapp_positive_pilot_manifest():
+    """TGM MiniApp positive pilot artifact manifest utilities."""
+    pass
+
+
+@miniapp_positive_pilot_manifest.command("validate")
+@click.option("--manifest", "manifest_path", required=True, help="Artifact manifest JSON path")
+def validate_miniapp_positive_pilot_manifest(manifest_path):
+    """Validate a TGM MiniApp positive pilot artifact manifest contract."""
+    from tools.validate_miniapp_positive_pilot_artifact_manifest import validate_manifest
+
+    result = validate_manifest(manifest_path)
+    status = "PASS" if result.passed else "FAILED"
+    click.echo(f"[{status}] MiniApp positive pilot artifact manifest validation")
+    click.echo(f"final_status: {result.final_status}")
+    click.echo(f"executed_real_runtime: {str(result.executed_real_runtime).lower()}")
+    click.echo(f"permits_real_e2e: {str(result.permits_real_e2e).lower()}")
+    for warning in result.warnings:
+        click.echo(f"[WARN] {warning}")
+    for error in result.errors:
+        click.echo(f"- {error}")
+    if not result.passed:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()

@@ -349,6 +349,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-DRY-RUNNER-A1`.
 - **Boundary note**: dry-runner output is not a real execution report. `executed_real_runtime` and every step's `actually_executed` must remain false.
 
+## 30. Time Goal Manager MiniApp Positive Pilot Artifact Manifest Contract
+- **Platform**: Both
+- **Type**: validation | **Access**: local_json_contract_validation | **Risk**: medium
+- **Preferred for**: validating the artifact manifest shape for a future TGM MiniApp positive pilot evidence package
+- **Forbidden for**: claiming real MiniApp E2E success, launching WeChat DevTools, connecting an automator endpoint, running Jest E2E, accepting prohibited artifacts, or treating optional artifact absence as failure
+- **Fallback**: reviewer reads the JSON manifest and checks required, optional, prohibited, and sensitive-scan fields manually
+- **Human gate**: yes for any real MiniApp runtime execution or RuntimeAuthorization change; no for local manifest contract validation | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main manifest miniapp-positive-pilot validate --manifest artifacts/tgm-miniapp-positive-pilot-artifact-manifest.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-ARTIFACT-MANIFEST-A1`.
+- **Boundary note**: manifest validation PASS proves only that evidence structure and artifact hygiene are acceptable. It does not prove real MiniApp E2E ran or passed. A real E2E run still needs separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
+
 ---
 
 ## Summary
@@ -384,6 +396,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 27 | Time Goal Manager MiniApp RuntimeAuthorization Package | Both | validation | medium | approved | local_json_schema_validation |
 | 28 | Time Goal Manager MiniApp Positive Pilot Plan | Both | planning | medium | approved | local_plan_generation |
 | 29 | Time Goal Manager MiniApp Positive Pilot Dry Runner | Both | planning | medium | approved | local_dry_manifest_generation |
+| 30 | Time Goal Manager MiniApp Positive Pilot Artifact Manifest Contract | Both | validation | medium | approved | local_json_contract_validation |
 
 ### Status Legend
 

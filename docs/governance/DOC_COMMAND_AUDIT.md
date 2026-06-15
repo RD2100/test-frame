@@ -328,3 +328,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main pilot miniapp-positive-pilot-dry-run --plan <plan-json> --out <manifest-json>` | A positive-pilot plan can be converted into a dry execution manifest with explicit skipped/runtime boundaries and prohibited action checks. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, or final acceptance. |
 
 Hard rule: dry-runner output is not a real execution report. `executed_real_runtime` must be false, every step must have `actually_executed=false`, and any `executes_real_runtime=true` step must remain template-only pending a separate positive-pilot execution TaskSpec.
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-ARTIFACT-MANIFEST-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main manifest miniapp-positive-pilot validate --manifest <artifact-manifest-json>` | A future TGM MiniApp positive pilot artifact manifest has required artifacts, optional/prohibited artifact semantics, clean sensitive-scan status, and correct authorization/runtime boundary fields. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
+
+Hard rule: artifact manifest validation PASS is evidence-structure PASS only. It must not be reported as real E2E PASS. Missing required artifacts, prohibited artifacts, failed sensitive scan, or `executed_real_runtime=true` without `permits_real_e2e=true` must fail validation. Missing optional artifacts must not fail validation. A real MiniApp E2E run still requires separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
