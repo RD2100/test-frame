@@ -184,6 +184,13 @@ def validate_evidence_pack(pack):
         click.echo("Missing git patch: git/show.patch or git/show-*.patch")
     if not result.raw_evidence_json:
         click.echo("Missing raw evidence JSON under evidence/")
+    if result.violations:
+        click.echo("Sensitive/local-path violations:")
+        for violation in result.violations:
+            click.echo(
+                f"- {violation.file}:{violation.line} "
+                f"[{violation.rule}] {violation.excerpt_redacted}"
+            )
     for error in result.errors:
         click.echo(f"- {error}")
     if not result.passed:

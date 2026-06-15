@@ -275,4 +275,6 @@ Added 2026-06-15 for the module GPT local review loop.
 |---|---|---|
 | `python -m cli.main evidence validate --pack <zip>` | The evidence ZIP contains required handoff reports, command summary, git patch, manifest JSON, and raw evidence JSON. | Product success, real runtime success, or final acceptance. |
 
-Hard rule: evidence pack validation checks package shape only. `BLOCKED` or `FAILED` raw evidence can still be valid evidence and must not be promoted to `PASS`. Missing raw evidence JSON, missing git patch, or missing `EXECUTION_REPORT.md` / `REVIEWER_INDEX.md` is a packaging defect.
+Hard rule: evidence pack validation checks package shape and text hygiene only. `BLOCKED` or `FAILED` raw evidence can still be valid evidence and must not be promoted to `PASS`. Missing raw evidence JSON, missing git patch, missing `EXECUTION_REPORT.md` / `REVIEWER_INDEX.md`, local absolute paths, runtime paths, or raw secret values are packaging defects.
+
+Sensitive-scan boundary: evidence packs may include environment variable names and `[REDACTED]` placeholders, but must not include secret values, raw cookies, storageState payloads, or local absolute paths. This scan is a local test-frame evidence hygiene gate, not final product acceptance or an agent-acceptance global schema.

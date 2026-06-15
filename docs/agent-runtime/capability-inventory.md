@@ -299,6 +299,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Status**: approved
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-EVIDENCE-PACK-MANIFEST-A1`.
 - **Boundary note**: validator proves package completeness only; `BLOCKED` and `FAILED` can be valid evidence states and must not be promoted to PASS.
+- **Sensitive-scan note**: validator scans text entries in the ZIP for local absolute paths, runtime paths, and raw secret values. This is test-frame evidence hygiene only; it is not final acceptance and does not define an agent-acceptance global schema.
 
 ---
 
