@@ -291,5 +291,47 @@ def validate_miniapp_positive_pilot_manifest(manifest_path):
         sys.exit(1)
 
 
+@cli.group()
+def bundle():
+    """Readiness bundle utilities."""
+    pass
+
+
+@bundle.group("miniapp-positive-pilot")
+def miniapp_positive_pilot_bundle():
+    """TGM MiniApp positive pilot readiness bundle utilities."""
+    pass
+
+
+@miniapp_positive_pilot_bundle.command("validate")
+@click.option("--prereq-evidence", required=True, help="Prerequisite evidence JSON")
+@click.option("--plan", "plan_path", required=True, help="Positive pilot plan JSON")
+@click.option("--dry-run", "dry_run_path", required=True, help="Dry-run manifest JSON")
+@click.option("--artifact-manifest", required=True, help="Artifact manifest JSON")
+@click.option("--out", required=True, help="Bundle report JSON")
+@click.option("--md-out", "md_out", required=True, help="Bundle report Markdown")
+def validate_miniapp_positive_pilot_bundle(prereq_evidence, plan_path, dry_run_path, artifact_manifest, out, md_out):
+    """Validate consistency across TGM MiniApp positive pilot readiness files."""
+    from tools.validate_miniapp_positive_pilot_bundle import validate_bundle
+
+    result = validate_bundle(
+        prereq_evidence,
+        plan_path,
+        dry_run_path,
+        artifact_manifest,
+        out,
+        md_out,
+    )
+    click.echo(f"bundle_status: {result.report['bundle_status']}")
+    click.echo(f"permits_real_e2e: {str(result.report['permits_real_e2e']).lower()}")
+    click.echo(f"executed_real_runtime: {str(result.report['executed_real_runtime']).lower()}")
+    for blocker in result.report["blockers"]:
+        click.echo(f"blocker: {blocker}")
+    for failure in result.report["failures"]:
+        click.echo(f"- {failure}")
+    if result.report["bundle_status"] == "FAILED":
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()

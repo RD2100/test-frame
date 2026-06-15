@@ -338,3 +338,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main manifest miniapp-positive-pilot validate --manifest <artifact-manifest-json>` | A future TGM MiniApp positive pilot artifact manifest has required artifacts, optional/prohibited artifact semantics, clean sensitive-scan status, and correct authorization/runtime boundary fields. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
 
 Hard rule: artifact manifest validation PASS is evidence-structure PASS only. It must not be reported as real E2E PASS. Missing required artifacts, prohibited artifacts, failed sensitive scan, or `executed_real_runtime=true` without `permits_real_e2e=true` must fail validation. Missing optional artifacts must not fail validation. A real MiniApp E2E run still requires separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-BUNDLE-VALIDATOR-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main bundle miniapp-positive-pilot validate --prereq-evidence <json> --plan <json> --dry-run <json> --artifact-manifest <json> --out <json> --md-out <md>` | The prerequisite evidence, RuntimeAuthorization summary, positive pilot plan, dry-run manifest, and artifact manifest agree on project, profile, authorization, runtime-execution boundary, and artifact hygiene. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
+
+Hard rule: bundle validation is a consistency check only. `READY_FOR_REAL_ENV_PROBE_DRY_RUN` and `READY_FOR_AUTHORIZED_E2E_TEMPLATE` are not real E2E PASS states. The validator must fail mismatched project/profile/schema, unauthorized `executed_real_runtime=true`, failing artifact manifest, and sensitive/prohibited artifacts. A real MiniApp E2E run still requires separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
