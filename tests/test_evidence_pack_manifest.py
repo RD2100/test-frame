@@ -132,6 +132,21 @@ def test_pack_with_windows_absolute_path_fails_sensitive_scan(tmp_path):
     assert local_path not in result.violations[0].excerpt_redacted
 
 
+def test_pack_with_windows_forward_slash_absolute_path_fails_sensitive_scan(tmp_path):
+    pack = tmp_path / "local-forward-path.zip"
+    slash = "/"
+    local_path = "D:" + slash + "devframe-system" + slash + "test-frame"
+    _write_pack(pack, extra_entries={"git/show.patch": f"+path={local_path}\n"})
+
+    result = validate_pack(pack)
+
+    assert result.passed is False
+    assert result.violations[0].rule == "windows_absolute_path"
+    assert result.violations[0].file == "git/show.patch"
+    assert "[REDACTED_PATH]" in result.violations[0].excerpt_redacted
+    assert local_path not in result.violations[0].excerpt_redacted
+
+
 def test_pack_with_windows_runtime_marker_path_fails_sensitive_scan(tmp_path):
     pack = tmp_path / "runtime-path.zip"
     slash = chr(92)

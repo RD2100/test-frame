@@ -6,7 +6,6 @@ from tools.validate_parent_canary_report import review_fixture
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "fixtures" / "parent-canary"
-PARENT_FIXTURE_DIR = Path("D:/devframe-system/integration/fixtures/parent-canary")
 
 
 def _load(path):

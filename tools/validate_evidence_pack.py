@@ -22,7 +22,7 @@ REQUIRED_ENTRIES = (
     "evidence/evidence-pack-manifest.json",
 )
 TEXT_EXTENSIONS = (".md", ".txt", ".json", ".patch", ".log", ".yaml", ".yml")
-WINDOWS_DRIVE_RE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z]:" + r"\\[^\s\"'<>|]+")
+WINDOWS_DRIVE_RE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z]:" + r"[\\/][^\s\"'<>|]+")
 WINDOWS_MARKER_PARTS = ("Users", "AppData", "WindowsApp")
 UNIX_USER_PATH_RE = re.compile(r"(?<![A-Za-z0-9_])/(Users|home|mnt)/[^\s\"'<>|]+")
 AUTHORIZATION_BEARER_RE = re.compile(r"(?i)(Authorization\s*:\s*Bearer\s+)([^\s,;\"']+)")
