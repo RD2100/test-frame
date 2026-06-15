@@ -116,13 +116,14 @@ def _add_violation(violations: list[ScanViolation], file: str, rule: str, line_n
 
 
 def _scan_line(file: str, line_number: int, line: str, violations: list[ScanViolation]) -> None:
+    runtime_blackboard_marker = ".claude" + "/" + "blackboard"
     if WINDOWS_DRIVE_RE.search(line):
         _add_violation(violations, file, "windows_absolute_path", line_number, line)
     if _windows_marker_paths(line):
         _add_violation(violations, file, "windows_user_or_runtime_path", line_number, line)
     if UNIX_USER_PATH_RE.search(line):
         _add_violation(violations, file, "unix_user_or_mount_path", line_number, line)
-    if ".claude/blackboard" in line.replace("\\", "/"):
+    if runtime_blackboard_marker in line.replace("\\", "/"):
         _add_violation(violations, file, "runtime_blackboard_path", line_number, line)
     if STORAGE_STATE_RE.search(line):
         _add_violation(violations, file, "raw_storage_state_reference", line_number, line)
