@@ -275,6 +275,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under user authorization on 2026-06-14 for `P1-H5-REAL-STAGING-LOGIN-OPTIN-A1`; production login and shared CI required execution still need separate review.
 - **Boundary note**: profile PASS proves only one explicitly enabled staging login execution and generated storageState shape; it does not prove long-term account validity, full authorization, session freshness, business H5 E2E, or regression coverage.
 
+## 24. Time Goal Manager MiniApp Positive Pilot Prerequisite Gate
+- **Platform**: Both
+- **Type**: validation | **Access**: required_capability_profile/prerequisite_probe | **Risk**: medium
+- **Preferred for**: checking RuntimeAuthorization, WeChat DevTools path presence, automator package resolution, endpoint policy shape, and artifact path policy before a human-authorized positive pilot
+- **Forbidden for**: starting WeChat DevTools, connecting a real automator endpoint, running MiniApp E2E, using real accounts/AppIDs/login state, or claiming Real MiniApp E2E readiness
+- **Fallback**: `tgm.miniapp.positive_pilot.prereq` evidence JSON with required capability `BLOCKED`/`FAILED` states and non-zero CLI exit
+- **Human gate**: yes (real MiniApp E2E, real endpoint connection, real login state, or shared CI promotion) | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main check --profile tgm.miniapp.positive_pilot.prereq --evidence artifacts/tgm-miniapp-positive-pilot-prereq.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PREREQ-A1`; real MiniApp E2E still needs separate RuntimeAuthorization.
+- **Boundary note**: profile PASS proves only positive pilot prerequisites and `real_env_probe_only` authorization; it does not prove WeChat DevTools launch, automator connection, route coverage, login, selector assertions, business E2E, or release readiness.
+
 ---
 
 ## Summary
@@ -304,6 +316,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 21 | Cloud Device Provider Auth Profile Gate Skeleton | Both | validation | medium | approved | local_probe |
 | 22 | H5 Auth Login Execution Skeleton | Both | validation | medium | approved | local_probe |
 | 23 | H5 Real Staging Login Opt-in Skeleton | Both | validation | high | approved | local_probe |
+| 24 | Time Goal Manager MiniApp Positive Pilot Prerequisite Gate | Both | validation | medium | approved | local_probe |
 
 ### Status Legend
 

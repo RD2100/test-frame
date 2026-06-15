@@ -16,6 +16,13 @@ PROFILES: dict[str, tuple[str, ...]] = {
         "miniapp.automator.sdk",
         "miniapp.automator.endpoint",
     ),
+    "tgm.miniapp.positive_pilot.prereq": (
+        "tgm.miniapp.runtime_authorization",
+        "tgm.miniapp.devtools.path",
+        "tgm.miniapp.automator.package",
+        "tgm.miniapp.endpoint.policy",
+        "tgm.miniapp.artifact.policy",
+    ),
     "h5.auth.staging": (
         "playwright.cli",
         "playwright.browser.chromium",

@@ -246,3 +246,21 @@ Hard rule: `metersphere.testplan.real` is an explicit required profile only. It 
 1. 环境探针：ADB / Maestro / WeChat DevTools / MeterSphere / Allure 的统一 `check` 输出。
 2. 可复现 harness：对每类外部工具提供 fake backend 或 local simulator，先验证框架协议，再接真实环境。
 3. 证据分层：把 `dry-run PASS`、`environment BLOCKED`、`real execution PASS/FAIL` 明确分开，避免假绿。
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PREREQ-A1
+
+Added 2026-06-15 for the module GPT handoff loop.
+
+| Capability | What it proves | What it does not prove |
+|---|---|---|
+| `tgm.miniapp.runtime_authorization` | `TGM_MINIAPP_RUNTIME_AUTHORIZATION=real_env_probe_only` is present for prerequisite probing. | Real MiniApp E2E permission, WeChat DevTools launch permission, or automator endpoint connection permission. |
+| `tgm.miniapp.devtools.path` | A configured WeChat DevTools path exists. | CLI execution, project opening, or MiniApp E2E readiness. |
+| `tgm.miniapp.automator.package` | Node can resolve the configured miniprogram automator package. | DevTools is running, endpoint is reachable, or tests can execute. |
+| `tgm.miniapp.endpoint.policy` | `MINIAPP_AUTOMATOR_ENDPOINT` has a valid `ws://host:port` shape. | The endpoint was contacted or is reachable. |
+| `tgm.miniapp.artifact.policy` | `TGM_MINIAPP_ARTIFACT_ROOT` points under `artifacts/`. | Artifacts were produced or validated from a real E2E run. |
+
+| Profile | Required capabilities | What it proves when PASS | What it does not prove |
+|---|---|---|---|
+| `tgm.miniapp.positive_pilot.prereq` | `tgm.miniapp.runtime_authorization`, `tgm.miniapp.devtools.path`, `tgm.miniapp.automator.package`, `tgm.miniapp.endpoint.policy`, `tgm.miniapp.artifact.policy` | Positive pilot prerequisites are configured for a prerequisite probe only. | Real MiniApp E2E, WeChat DevTools launch, automator endpoint connection, login, route coverage, selector assertions, or release readiness. |
+
+Hard rule: `tgm.miniapp.positive_pilot.prereq` must not launch WeChat DevTools, connect an automator endpoint, run Jest E2E, or report Real MiniApp E2E ready. Missing RuntimeAuthorization or environment configuration must remain `BLOCKED`/`FAILED`, never `PASS`.

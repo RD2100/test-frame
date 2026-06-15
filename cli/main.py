@@ -115,7 +115,12 @@ def check(project, capability_name, capability_profile, required, evidence):
             click.echo(f"[{result.status}] {result.capability}: {result.reason}")
 
         if evidence:
-            output_path = write_evidence(results, evidence)
+            output_path = write_evidence(
+                results,
+                evidence,
+                profile_name=capability_profile,
+                command_invoked=sys.argv[1:],
+            )
             click.echo(f"[OK] Capability evidence written: {output_path}")
 
         if required_gate_failed(results):

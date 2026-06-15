@@ -3,20 +3,30 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
 from capability.command import run_command
 from capability.providers.common import resolve_executable
-from capability.schema import CapabilityResult, evidence_from_command
+from capability.schema import CapabilityResult, redact_string, summarize, evidence_from_command
 
 
 DEVTOOL_PATH_ENVS = ("WECHAT_DEVTOOL_PATH", "WECHAT_DEVTOOL_CLI", "WECHAT_DEVTOOLS_CLI")
 AUTOMATOR_PACKAGE_ENV = "MINIAPP_AUTOMATOR_PACKAGE"
 AUTOMATOR_ENDPOINT_ENV = "MINIAPP_AUTOMATOR_ENDPOINT"
+TGM_RUNTIME_AUTHORIZATION_ENV = "TGM_MINIAPP_RUNTIME_AUTHORIZATION"
+TGM_ARTIFACT_ROOT_ENV = "TGM_MINIAPP_ARTIFACT_ROOT"
 DEFAULT_AUTOMATOR_PACKAGE = "miniprogram-automator"
 RUNTIME_PROBE_SCRIPT = Path("scripts/miniapp_runtime_probe.js")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ALLOWED_TGM_ARTIFACT_ROOT = REPO_ROOT / "artifacts"
+TGM_RUNTIME_AUTHORIZATION_VALUES = (
+    "dry_run_only",
+    "real_env_probe_only",
+    "real_e2e_authorized",
+)
 
 
 def _clean_env_value(value: str | None) -> str:
@@ -172,6 +182,113 @@ def _automator_package() -> str:
     return _clean_env_value(os.environ.get(AUTOMATOR_PACKAGE_ENV)) or DEFAULT_AUTOMATOR_PACKAGE
 
 
+def _path_fingerprint(path: Path) -> str:
+    return hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:12]
+
+
+def _path_policy_evidence(env_name: str, configured_path: str, path: Path | None) -> dict:
+    return {
+        "env": env_name,
+        "path_configured": bool(configured_path),
+        "path_hash": _path_fingerprint(path) if path else "",
+        "path_exists": path.exists() if path else False,
+        "path_is_file": path.is_file() if path else False,
+        "path_is_dir": path.is_dir() if path else False,
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+    }
+
+
+def probe_tgm_runtime_authorization(required: bool = False) -> CapabilityResult:
+    value = _clean_env_value(os.environ.get(TGM_RUNTIME_AUTHORIZATION_ENV))
+    evidence = {
+        "runtime_authorization": {
+            "env": TGM_RUNTIME_AUTHORIZATION_ENV,
+            "value": value,
+            "allowed_values": list(TGM_RUNTIME_AUTHORIZATION_VALUES),
+            "permits_real_e2e": False,
+        },
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+    }
+    if not value:
+        return _blocked(
+            "tgm.miniapp.runtime_authorization",
+            required,
+            "missing RuntimeAuthorization for time-goal-manager MiniApp positive pilot",
+            {**evidence, "stderr": "environment variable missing"},
+        )
+    if value not in TGM_RUNTIME_AUTHORIZATION_VALUES:
+        return CapabilityResult(
+            capability="tgm.miniapp.runtime_authorization",
+            status="FAILED",
+            required=required,
+            reason="RuntimeAuthorization value is not recognized",
+            evidence={**evidence, "stderr": "invalid RuntimeAuthorization value"},
+        )
+    if value == "dry_run_only":
+        return _blocked(
+            "tgm.miniapp.runtime_authorization",
+            required,
+            "real MiniApp positive pilot is not authorized",
+            evidence,
+        )
+    if value == "real_e2e_authorized":
+        return _blocked(
+            "tgm.miniapp.runtime_authorization",
+            required,
+            "real E2E authorization exceeds this prerequisite-only profile",
+            {
+                **evidence,
+                "runtime_authorization": {
+                    **evidence["runtime_authorization"],
+                    "requested_authorization_exceeds_profile": True,
+                },
+            },
+        )
+    return CapabilityResult(
+        capability="tgm.miniapp.runtime_authorization",
+        status="PASS",
+        required=required,
+        reason="RuntimeAuthorization permits prerequisite probe only",
+        evidence=evidence,
+    )
+
+
+def probe_tgm_devtools_path(required: bool = False) -> CapabilityResult:
+    env_name, configured_path, path = _configured_devtool_path()
+    if not configured_path or path is None:
+        return _blocked(
+            "tgm.miniapp.devtools.path",
+            required,
+            "WeChat DevTools path env is not set",
+            {
+                "env": DEVTOOL_PATH_ENVS,
+                "path_configured": False,
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "environment variable missing",
+            },
+        )
+    evidence = _path_policy_evidence(env_name or "", configured_path, path)
+    if not path.exists():
+        return _blocked(
+            "tgm.miniapp.devtools.path",
+            required,
+            "configured WeChat DevTools path does not exist",
+            {**evidence, "stderr": "configured path not found"},
+        )
+    return CapabilityResult(
+        capability="tgm.miniapp.devtools.path",
+        status="PASS",
+        required=required,
+        reason="WeChat DevTools path exists; CLI was not launched",
+        evidence=evidence,
+    )
+
+
 def probe_sdk(required: bool = False) -> CapabilityResult:
     package_name = _automator_package()
     command = ["node", "-e", "require.resolve(process.argv[1])", package_name]
@@ -209,6 +326,62 @@ def probe_sdk(required: bool = False) -> CapabilityResult:
     )
 
 
+def probe_tgm_automator_package(required: bool = False) -> CapabilityResult:
+    package_name = _automator_package()
+    command = ["node", "-e", "require.resolve(process.argv[1])", package_name]
+    resolved_node = resolve_executable("node")
+    if not resolved_node:
+        return _blocked(
+            "tgm.miniapp.automator.package",
+            required,
+            "node not found in PATH",
+            {
+                "command": command,
+                "package": package_name,
+                "does_not_connect_endpoint": True,
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "executable not found",
+            },
+        )
+
+    evidence = run_command([resolved_node, *command[1:]], timeout=15)
+    command_evidence = {
+        "command": command,
+        "exit_code": evidence.exit_code,
+        "stdout": _sanitize_tgm_probe_output(evidence.stdout),
+        "stderr": _sanitize_tgm_probe_output(evidence.stderr),
+        "package": package_name,
+        "does_not_connect_endpoint": True,
+    }
+    if evidence.exit_code == 0:
+        return CapabilityResult(
+            capability="tgm.miniapp.automator.package",
+            status="PASS",
+            required=required,
+            reason="miniprogram automator package resolved successfully",
+            evidence=command_evidence,
+        )
+    return _blocked(
+        "tgm.miniapp.automator.package",
+        required,
+        "miniprogram automator package could not be resolved",
+        command_evidence,
+    )
+
+
+def _sanitize_tgm_probe_output(text: str) -> str:
+    cleaned = redact_string(text)
+    replacements = {
+        str(REPO_ROOT): "[REPO_ROOT]",
+        str(REPO_ROOT.resolve()): "[REPO_ROOT]",
+        str(Path.cwd()): "[CWD]",
+    }
+    for raw, replacement in replacements.items():
+        cleaned = cleaned.replace(raw, replacement)
+    return summarize(cleaned)
+
+
 def _endpoint_parts() -> tuple[str, str, int | None, str | None]:
     endpoint = _clean_env_value(os.environ.get(AUTOMATOR_ENDPOINT_ENV))
     if not endpoint:
@@ -217,6 +390,103 @@ def _endpoint_parts() -> tuple[str, str, int | None, str | None]:
     if parsed.scheme != "ws" or not parsed.hostname or parsed.port is None:
         return endpoint, "", None, "MINIAPP_AUTOMATOR_ENDPOINT must be ws://host:port"
     return endpoint, parsed.hostname, parsed.port, None
+
+
+def probe_tgm_endpoint_policy(required: bool = False) -> CapabilityResult:
+    endpoint, host, port, endpoint_error = _endpoint_parts()
+    evidence = {
+        "env": AUTOMATOR_ENDPOINT_ENV,
+        "endpoint_policy": {
+            "configured": bool(endpoint),
+            "scheme": urlparse(endpoint).scheme if endpoint else "",
+            "host_kind": "localhost" if host in {"localhost", "127.0.0.1", "::1"} else "external_or_named",
+            "port": port,
+            "does_not_connect_endpoint": True,
+        },
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+    }
+    if not endpoint:
+        return _blocked(
+            "tgm.miniapp.endpoint.policy",
+            required,
+            "MINIAPP_AUTOMATOR_ENDPOINT is not set",
+            {**evidence, "stderr": "endpoint not configured"},
+        )
+    if endpoint_error:
+        return CapabilityResult(
+            capability="tgm.miniapp.endpoint.policy",
+            status="FAILED",
+            required=required,
+            reason=endpoint_error,
+            evidence={**evidence, "stderr": "invalid endpoint policy"},
+        )
+    return CapabilityResult(
+        capability="tgm.miniapp.endpoint.policy",
+        status="PASS",
+        required=required,
+        reason="MiniApp automator endpoint policy is configured; endpoint was not contacted",
+        evidence=evidence,
+    )
+
+
+def probe_tgm_artifact_policy(required: bool = False) -> CapabilityResult:
+    configured_path = _clean_env_value(os.environ.get(TGM_ARTIFACT_ROOT_ENV))
+    if not configured_path:
+        return _blocked(
+            "tgm.miniapp.artifact.policy",
+            required,
+            "MiniApp positive pilot artifact root is not configured",
+            {
+                "env": TGM_ARTIFACT_ROOT_ENV,
+                "artifact_policy": {
+                    "configured": False,
+                    "allowed_root": "artifacts/",
+                    "within_allowed_root": False,
+                },
+                "exit_code": None,
+                "stdout": "",
+                "stderr": "environment variable missing",
+            },
+        )
+    path = Path(configured_path).expanduser()
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    resolved_path = path.resolve()
+    allowed_root = ALLOWED_TGM_ARTIFACT_ROOT.resolve()
+    try:
+        within_allowed_root = resolved_path == allowed_root or allowed_root in resolved_path.parents
+    except RuntimeError:
+        within_allowed_root = False
+    evidence = {
+        "env": TGM_ARTIFACT_ROOT_ENV,
+        "artifact_policy": {
+            "configured": True,
+            "allowed_root": "artifacts/",
+            "path_hash": _path_fingerprint(resolved_path),
+            "within_allowed_root": within_allowed_root,
+            "path_exists": resolved_path.exists(),
+        },
+        "exit_code": None,
+        "stdout": "",
+        "stderr": "",
+    }
+    if not within_allowed_root:
+        return CapabilityResult(
+            capability="tgm.miniapp.artifact.policy",
+            status="FAILED",
+            required=required,
+            reason="MiniApp positive pilot artifact root is outside the allowed artifacts directory",
+            evidence={**evidence, "stderr": "artifact path outside allowed root"},
+        )
+    return CapabilityResult(
+        capability="tgm.miniapp.artifact.policy",
+        status="PASS",
+        required=required,
+        reason="MiniApp positive pilot artifact root is within the allowed artifacts directory",
+        evidence=evidence,
+    )
 
 
 def _endpoint_result_from_payload(payload: dict, required: bool, command_evidence: dict) -> CapabilityResult:

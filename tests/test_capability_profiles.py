@@ -22,6 +22,14 @@ MINIAPP_AUTOMATOR_CAPABILITIES = [
     "miniapp.automator.endpoint",
 ]
 
+TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES = [
+    "tgm.miniapp.runtime_authorization",
+    "tgm.miniapp.devtools.path",
+    "tgm.miniapp.automator.package",
+    "tgm.miniapp.endpoint.policy",
+    "tgm.miniapp.artifact.policy",
+]
+
 METERSPHERE_TESTPLAN_CAPABILITIES = [
     "metersphere.env",
     "metersphere.real.auth",
@@ -82,6 +90,10 @@ def _set_android_maestro_providers(monkeypatch, states: dict[str, tuple[str, str
 
 def _set_miniapp_automator_providers(monkeypatch, states: dict[str, tuple[str, str]]):
     _set_providers(monkeypatch, MINIAPP_AUTOMATOR_CAPABILITIES, states)
+
+
+def _set_tgm_miniapp_prereq_providers(monkeypatch, states: dict[str, tuple[str, str]]):
+    _set_providers(monkeypatch, TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES, states)
 
 
 def _set_metersphere_testplan_providers(monkeypatch, states: dict[str, tuple[str, str]]):
@@ -221,6 +233,10 @@ def test_miniapp_automator_real_profile_expands_to_required_capabilities():
     assert resolve_profile("miniapp.automator.real") == MINIAPP_AUTOMATOR_CAPABILITIES
 
 
+def test_tgm_miniapp_positive_pilot_prereq_profile_expands_to_required_capabilities():
+    assert resolve_profile("tgm.miniapp.positive_pilot.prereq") == TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+
+
 def test_miniapp_profile_blocks_when_devtools_path_is_missing(monkeypatch):
     _set_miniapp_automator_providers(
         monkeypatch,
@@ -317,6 +333,86 @@ def test_optional_miniapp_capability_all_still_allows_blocked_results(monkeypatc
     assert result.exit_code == 0
     assert "[BLOCKED] miniapp.automator.endpoint: MINIAPP_AUTOMATOR_ENDPOINT is not set" in result.output
     assert "[OK] Capability check completed" in result.output
+
+
+def test_tgm_miniapp_prereq_profile_blocks_when_runtime_authorization_is_missing(monkeypatch):
+    _set_tgm_miniapp_prereq_providers(
+        monkeypatch,
+        {"tgm.miniapp.runtime_authorization": ("BLOCKED", "missing RuntimeAuthorization")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "tgm.miniapp.positive_pilot.prereq"])
+
+    assert result.exit_code == 1
+    assert "[BLOCKED] tgm.miniapp.runtime_authorization: missing RuntimeAuthorization" in result.output
+    assert "[FAIL] Required capability check failed" in result.output
+
+
+def test_tgm_miniapp_prereq_profile_fails_when_artifact_policy_is_outside_root(monkeypatch):
+    _set_tgm_miniapp_prereq_providers(
+        monkeypatch,
+        {"tgm.miniapp.artifact.policy": ("FAILED", "artifact root outside allowed directory")},
+    )
+
+    result = CliRunner().invoke(cli, ["check", "--profile", "tgm.miniapp.positive_pilot.prereq"])
+
+    assert result.exit_code == 1
+    assert "[FAILED] tgm.miniapp.artifact.policy: artifact root outside allowed directory" in result.output
+
+
+def test_tgm_miniapp_prereq_profile_writes_structured_evidence(monkeypatch, tmp_path):
+    def provider(capability: str, status: str, reason: str = "ok"):
+        def run(required: bool = False) -> CapabilityResult:
+            evidence = {}
+            if capability == "tgm.miniapp.runtime_authorization":
+                evidence["runtime_authorization"] = {
+                    "value": "real_env_probe_only",
+                    "permits_real_e2e": False,
+                }
+            if capability == "tgm.miniapp.endpoint.policy":
+                evidence["endpoint_policy"] = {"configured": True, "does_not_connect_endpoint": True}
+            if capability == "tgm.miniapp.artifact.policy":
+                evidence["artifact_policy"] = {"within_allowed_root": True}
+            return CapabilityResult(
+                capability=capability,
+                status=status,
+                required=required,
+                reason=reason,
+                evidence=evidence,
+            )
+
+        return run
+
+    monkeypatch.setattr(
+        probe_module,
+        "PROVIDERS",
+        {
+            capability: provider(capability, "PASS")
+            for capability in TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
+        },
+    )
+    evidence_path = tmp_path / "tgm-miniapp-positive-pilot-prereq.json"
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "check",
+            "--profile",
+            "tgm.miniapp.positive_pilot.prereq",
+            "--evidence",
+            str(evidence_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    assert payload["profile_name"] == "tgm.miniapp.positive_pilot.prereq"
+    assert payload["status"] == "PASS"
+    assert payload["permits_real_e2e"] is False
+    assert payload["runtime_authorization"]["value"] == "real_env_probe_only"
+    assert payload["endpoint_policy"]["does_not_connect_endpoint"] is True
+    assert payload["artifact_policy"]["within_allowed_root"] is True
+    assert [item["capability"] for item in payload["capability_results"]] == TGM_MINIAPP_POSITIVE_PILOT_PREREQ_CAPABILITIES
 
 
 def test_metersphere_testplan_real_profile_expands_to_required_capabilities():
