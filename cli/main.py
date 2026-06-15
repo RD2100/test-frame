@@ -359,5 +359,29 @@ def evaluate_miniapp_positive_pilot_readiness(bundle_report, out, md_out):
         sys.exit(1)
 
 
+@cli.group()
+def closeout():
+    """Closeout index utilities."""
+    pass
+
+
+@closeout.command("tgm-miniapp-readiness")
+@click.option("--out", required=True, help="Closeout JSON path")
+@click.option("--md-out", "md_out", required=True, help="Closeout Markdown path")
+def generate_tgm_miniapp_readiness_closeout(out, md_out):
+    """Generate the TGM MiniApp readiness closeout index."""
+    from tools.generate_tgm_miniapp_readiness_closeout import generate_closeout
+
+    report = generate_closeout(out, md_out)
+    click.echo(f"closeout_status: {report['status_summary']['current_local_loop_status']}")
+    click.echo(f"real_miniapp_e2e_ready: {str(report['status_summary']['real_miniapp_e2e_ready']).lower()}")
+    click.echo(
+        "runtime_authorization_required_for_real_e2e: "
+        f"{str(report['status_summary']['runtime_authorization_required_for_real_e2e']).lower()}"
+    )
+    click.echo(f"requires_parent_pin_now: {str(report['parent_control_boundary']['requires_parent_pin_now']).lower()}")
+    click.echo(f"requires_main_control_now: {str(report['parent_control_boundary']['requires_main_control_now']).lower()}")
+
+
 if __name__ == "__main__":
     cli()

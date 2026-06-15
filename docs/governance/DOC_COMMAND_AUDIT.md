@@ -358,3 +358,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main readiness miniapp-positive-pilot --bundle-report <json> --out <json> --md-out <md>` | A validated local bundle maps to a readiness decision: BLOCKED, READY_FOR_REAL_ENV_PROBE, READY_FOR_AUTHORIZED_E2E_TEMPLATE, or FAILED. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
 
 Hard rule: readiness gate READY is not real E2E PASS. `READY_FOR_REAL_ENV_PROBE` still requires real environment authorization. `READY_FOR_AUTHORIZED_E2E_TEMPLATE` still requires a separate positive-pilot execution TaskSpec and RuntimeAuthorization. Any source report with `executed_real_runtime=true` in this local task must fail readiness evaluation.
+
+## TESTFRAME-TGM-MINIAPP-READINESS-CLOSEOUT-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main closeout tgm-miniapp-readiness --out reports/tgm-miniapp-readiness-closeout.json --md-out reports/tgm-miniapp-readiness-closeout.md` | The completed local TGM MiniApp readiness evidence components can be indexed with explicit accepted scope, evidence map, known gaps, parent-control boundary, and next authorized step options. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, route coverage, login, release readiness, or final acceptance. |
+
+Hard rule: closeout READY is a local index status only. It must keep `real_miniapp_e2e_ready=false`, require RuntimeAuthorization for real environment probe and real E2E positive pilot, keep `miniapp-core` and `miniapp-release` deferred, and never report readiness as execution done.

@@ -385,6 +385,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-READINESS-GATE-A1`.
 - **Boundary note**: readiness READY is a local decision about which authorization/request path is next. It does not prove real MiniApp E2E ran or passed. Real E2E still needs separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
 
+## 33. Time Goal Manager MiniApp Readiness Closeout Index
+- **Platform**: Both
+- **Type**: reporting | **Access**: local_closeout_index_generation | **Risk**: low
+- **Preferred for**: generating a reviewer-facing index of completed TGM MiniApp positive pilot readiness evidence and remaining real-runtime gaps
+- **Forbidden for**: claiming real MiniApp E2E readiness, launching WeChat DevTools, connecting an automator endpoint, running Jest E2E, or treating closeout READY as final acceptance
+- **Fallback**: reviewer manually cross-checks the prerequisite, plan, dry-run, artifact manifest, bundle, readiness, and parent canary evidence reports
+- **Human gate**: yes for real MiniApp runtime execution or milestone parent pin; no for local closeout report generation | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main closeout tgm-miniapp-readiness --out reports/tgm-miniapp-readiness-closeout.json --md-out reports/tgm-miniapp-readiness-closeout.md`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-READINESS-CLOSEOUT-A1`.
+- **Boundary note**: closeout READY is a local index status only. It keeps `real_miniapp_e2e_ready=false`, requires RuntimeAuthorization for real environment probe or real E2E, and does not require parent pin or main-control intervention by itself.
+
 ---
 
 ## Summary
@@ -423,6 +435,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 30 | Time Goal Manager MiniApp Positive Pilot Artifact Manifest Contract | Both | validation | medium | approved | local_json_contract_validation |
 | 31 | Time Goal Manager MiniApp Positive Pilot Bundle Validator | Both | validation | medium | approved | local_bundle_consistency_validation |
 | 32 | Time Goal Manager MiniApp Positive Pilot Readiness Gate | Both | validation | medium | approved | local_readiness_decision |
+| 33 | Time Goal Manager MiniApp Readiness Closeout Index | Both | reporting | low | approved | local_closeout_index_generation |
 
 ### Status Legend
 
