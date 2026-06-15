@@ -1,0 +1,47 @@
+project:
+  name: "time-goal-manager"
+  project_path: "D:/time-goal-manager/miniprogram"
+  type: "miniprogram"
+
+stages:
+  - stage: miniapp-smoke
+    tools: [miniprogram-automator]
+    timeout: 900
+    retry: 0
+    on_failure: abort
+
+  - stage: evidence
+    tools: []
+    timeout: 30
+    on_failure: continue
+
+  - stage: report
+    tools: []
+    timeout: 30
+    on_failure: continue
+
+  - stage: gate
+    tools: []
+    timeout: 10
+    on_failure: continue
+
+miniapp:
+  devtool_path: "${WECHAT_DEVTOOL_PATH}"
+  devtool_port: 19501
+  project_path: "D:/time-goal-manager/miniprogram"
+  route_preflight_script: "D:/devframe-system/test-frame/scripts/miniapp_route_preflight.js"
+  runtime_probe: false
+  force_clean_start: false
+  results_artifact: true
+  test_scripts:
+    - name: "miniapp-smoke"
+      script: "D:/time-goal-manager/scripts/testframe-miniapp-bridge.js"
+      args:
+        - "--files"
+        - "connection,home,goals,time"
+        - "--bail"
+
+report:
+  format: "allure"
+  results_dir: "reports/allure-results/"
+  html_dir: "reports/allure-report/"

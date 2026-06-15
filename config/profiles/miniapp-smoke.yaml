@@ -1,0 +1,15 @@
+profile: miniapp-smoke
+description: "time-goal-manager MiniApp smoke profile via existing E2E runner"
+
+stages:
+  - miniapp-smoke
+  - evidence
+  - report
+  - gate
+
+gate_profile: pr
+
+parallel:
+  enabled: false
+  cross_tool: false
+  max_workers: 1
