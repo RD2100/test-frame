@@ -288,3 +288,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python tools/generate_miniapp_prereq_report.py --evidence artifacts/tgm-miniapp-positive-pilot-prereq.json --out reports/tgm-miniapp-prereq-report.md --json-out reports/tgm-miniapp-prereq-report.json` | The existing TGM MiniApp prerequisite evidence can be summarized into Markdown and JSON reviewer reports with status, reason codes, hygiene flags, and runtime boundaries. | Real MiniApp E2E readiness, WeChat DevTools launch, automator endpoint connectivity, login, route coverage, selector assertions, or release readiness. |
 
 Hard rule: the prerequisite report must keep `final_verdict_for_real_e2e=NOT_READY` and `permits_real_e2e=false` unless a separate RuntimeAuthorization task explicitly changes the boundary. Dry-run readiness and prerequisite evidence must not be written as real E2E PASS.
+
+## TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-PACK-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main authorization validate --file docs/test-frame/tgm-miniapp-runtime-authorization.example.redacted.json` | A redacted RuntimeAuthorization package has required fields, safe artifact policy, and no raw local paths or secret values. | Real MiniApp E2E authorization, WeChat DevTools launch permission in the current environment, automator endpoint reachability, or E2E execution success. |
+
+Hard rule: RuntimeAuthorization package validation is a format and safety-boundary gate only. `real_e2e_authorized` requires explicit user or main-control authorization, expiry, reviewer identity, safe artifact policy, and safety bounds; validation PASS must not be reported as real E2E PASS.

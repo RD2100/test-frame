@@ -313,6 +313,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-PREREQ-REPORT-A1`.
 - **Boundary note**: report output is reviewer-facing prerequisite evidence only. `final_verdict_for_real_e2e=NOT_READY` and `permits_real_e2e=false` are mandatory unless a separate RuntimeAuthorization TaskSpec changes the boundary.
 
+## 27. Time Goal Manager MiniApp RuntimeAuthorization Package
+- **Platform**: Both
+- **Type**: validation | **Access**: local_json_schema_validation | **Risk**: medium
+- **Preferred for**: validating the request package format and safety bounds needed before any human-authorized TGM MiniApp positive pilot
+- **Forbidden for**: granting authorization by itself, launching WeChat DevTools, connecting automator endpoints, or proving real MiniApp E2E success
+- **Fallback**: manual reviewer checklist using `docs/test-frame/tgm-miniapp-runtime-authorization.template.json`
+- **Human gate**: yes for any `real_e2e_authorized` package; no for validating redacted examples | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main authorization validate --file docs/test-frame/tgm-miniapp-runtime-authorization.example.redacted.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-PACK-A1`.
+- **Boundary note**: validator PASS means the authorization package shape and safety bounds are acceptable. It does not mean real E2E was executed, and it does not change `tgm.miniapp.positive_pilot.prereq` from BLOCKED without actual runtime environment variables and separate authorization.
+
 ---
 
 ## Summary
@@ -345,6 +357,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 24 | Time Goal Manager MiniApp Positive Pilot Prerequisite Gate | Both | validation | medium | approved | local_probe |
 | 25 | Module GPT Evidence Pack Manifest Gate | Both | validation | low | approved | local_zip_manifest_validation |
 | 26 | Time Goal Manager MiniApp Prerequisite Report | Both | reporting | low | approved | local_evidence_summary |
+| 27 | Time Goal Manager MiniApp RuntimeAuthorization Package | Both | validation | medium | approved | local_json_schema_validation |
 
 ### Status Legend
 

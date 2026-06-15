@@ -197,5 +197,28 @@ def validate_evidence_pack(pack):
         sys.exit(1)
 
 
+@cli.group()
+def authorization():
+    """RuntimeAuthorization utilities."""
+    pass
+
+
+@authorization.command("validate")
+@click.option("--file", "file_path", required=True, help="RuntimeAuthorization JSON file")
+def validate_authorization(file_path):
+    """Validate a RuntimeAuthorization request package."""
+    from tools.validate_runtime_authorization import validate_authorization as validate_auth_file
+
+    result = validate_auth_file(file_path)
+    status = "PASS" if result.passed else "FAILED"
+    click.echo(f"[{status}] RuntimeAuthorization validation")
+    click.echo(f"authorization_type: {result.authorization_type}")
+    click.echo(f"permits_real_e2e: {str(result.permits_real_e2e).lower()}")
+    for error in result.errors:
+        click.echo(f"- {error}")
+    if not result.passed:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()
