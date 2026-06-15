@@ -325,6 +325,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-RUNTIME-AUTH-PACK-A1`.
 - **Boundary note**: validator PASS means the authorization package shape and safety bounds are acceptable. `TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE` lets the prerequisite profile read a redacted local authorization package and emit sanitized evidence. It does not mean real E2E was executed, and `real_env_probe_only` still sets `permits_real_e2e=false`. `real_e2e_authorized` is only recognized as an authorization record; a separate positive-pilot TaskSpec is still required before any real MiniApp E2E run.
 
+## 28. Time Goal Manager MiniApp Positive Pilot Plan
+- **Platform**: Both
+- **Type**: planning | **Access**: local_plan_generation | **Risk**: medium
+- **Preferred for**: generating a dry positive-pilot execution plan from `tgm.miniapp.positive_pilot.prereq` evidence before any real MiniApp runtime authorization
+- **Forbidden for**: executing MiniApp E2E, launching WeChat DevTools, connecting automator endpoints, or treating plan READY as real E2E completion
+- **Fallback**: reviewer reads raw prerequisite evidence and manually checks `planned_steps` boundaries
+- **Human gate**: yes for any future real MiniApp runtime execution; no for local plan generation | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main plan miniapp-positive-pilot --prereq-evidence artifacts/tgm-miniapp-prereq-real-env-probe-only.json --out reports/tgm-miniapp-positive-pilot-plan.md --json-out reports/tgm-miniapp-positive-pilot-plan.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PLAN-A1`.
+- **Boundary note**: plan generation is not execution. `READY_FOR_REAL_ENV_PROBE` must keep `permits_real_e2e=false`; `READY_FOR_REAL_E2E_AUTHORIZED_RUN` is a future command template only and still requires a separate positive-pilot TaskSpec before execution.
+
 ---
 
 ## Summary
@@ -358,6 +370,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 25 | Module GPT Evidence Pack Manifest Gate | Both | validation | low | approved | local_zip_manifest_validation |
 | 26 | Time Goal Manager MiniApp Prerequisite Report | Both | reporting | low | approved | local_evidence_summary |
 | 27 | Time Goal Manager MiniApp RuntimeAuthorization Package | Both | validation | medium | approved | local_json_schema_validation |
+| 28 | Time Goal Manager MiniApp Positive Pilot Plan | Both | planning | medium | approved | local_plan_generation |
 
 ### Status Legend
 

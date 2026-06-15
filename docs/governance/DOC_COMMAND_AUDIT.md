@@ -308,3 +308,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `TGM_MINIAPP_RUNTIME_AUTHORIZATION_FILE=<redacted-json> python -m cli.main check --profile tgm.miniapp.positive_pilot.prereq --evidence <json>` | The prerequisite profile can read a local RuntimeAuthorization package, validate it, and emit sanitized authorization evidence with stable reason codes. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, route coverage, login, selector assertions, or final acceptance. |
 
 Hard rule: the profile evidence must not include raw `authorized_by`, `authorization_note`, local absolute paths, token/password/cookie/AppID secret values, or storageState payloads. RuntimeAuthorization capability PASS must be interpreted only as local authorization-file evidence; it does not authorize this task to execute real MiniApp E2E.
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-PLAN-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main plan miniapp-positive-pilot --prereq-evidence <json> --out <md> --json-out <json>` | The existing prerequisite evidence can be translated into a dry positive-pilot plan with status, planned steps, artifact manifest template, and runtime boundaries. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, selector coverage, login, or final acceptance. |
+
+Hard rule: plan generation is not execution. `READY_FOR_REAL_ENV_PROBE` must keep `permits_real_e2e=false` and must not include a real E2E execution step. `READY_FOR_REAL_E2E_AUTHORIZED_RUN` may list only a future command template and still needs a separate positive-pilot TaskSpec before any real runtime command is executed.

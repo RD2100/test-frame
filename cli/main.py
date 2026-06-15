@@ -220,5 +220,25 @@ def validate_authorization(file_path):
         sys.exit(1)
 
 
+@cli.group()
+def plan():
+    """Dry execution plan utilities."""
+    pass
+
+
+@plan.command("miniapp-positive-pilot")
+@click.option("--prereq-evidence", required=True, help="TGM MiniApp prerequisite evidence JSON")
+@click.option("--out", required=True, help="Markdown plan path")
+@click.option("--json-out", "json_out", required=True, help="JSON plan path")
+def miniapp_positive_pilot_plan(prereq_evidence, out, json_out):
+    """Generate a dry TGM MiniApp positive pilot execution plan."""
+    from tools.generate_miniapp_positive_pilot_plan import generate_plan
+
+    result = generate_plan(prereq_evidence, out, json_out)
+    click.echo(f"plan_status: {result['plan_status']}")
+    click.echo(f"primary_blocker: {result['prerequisite_summary']['primary_blocker']}")
+    click.echo(f"permits_real_e2e: {str(result['permits_real_e2e']).lower()}")
+
+
 if __name__ == "__main__":
     cli()
