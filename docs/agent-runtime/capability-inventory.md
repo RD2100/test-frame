@@ -373,6 +373,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-BUNDLE-VALIDATOR-A1`.
 - **Boundary note**: bundle validation READY proves only that local evidence files are internally consistent. It does not prove real MiniApp E2E ran or passed. A real E2E run still needs separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
 
+## 32. Time Goal Manager MiniApp Positive Pilot Readiness Gate
+- **Platform**: Both
+- **Type**: validation | **Access**: local_readiness_decision | **Risk**: medium
+- **Preferred for**: converting a validated positive-pilot bundle report into a final local readiness decision before requesting any real MiniApp runtime work
+- **Forbidden for**: executing MiniApp E2E, launching WeChat DevTools, connecting an automator endpoint, running Jest E2E, or claiming readiness as completed real E2E
+- **Fallback**: reviewer reads the bundle report and applies the readiness mapping manually
+- **Human gate**: yes for any real MiniApp runtime execution or RuntimeAuthorization change; no for local readiness evaluation | **Must explain if skipped**: yes
+- **Evidence**: `python -m cli.main readiness miniapp-positive-pilot --bundle-report <json> --out <json> --md-out <md>`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-READINESS-GATE-A1`.
+- **Boundary note**: readiness READY is a local decision about which authorization/request path is next. It does not prove real MiniApp E2E ran or passed. Real E2E still needs separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
+
 ---
 
 ## Summary
@@ -410,6 +422,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 29 | Time Goal Manager MiniApp Positive Pilot Dry Runner | Both | planning | medium | approved | local_dry_manifest_generation |
 | 30 | Time Goal Manager MiniApp Positive Pilot Artifact Manifest Contract | Both | validation | medium | approved | local_json_contract_validation |
 | 31 | Time Goal Manager MiniApp Positive Pilot Bundle Validator | Both | validation | medium | approved | local_bundle_consistency_validation |
+| 32 | Time Goal Manager MiniApp Positive Pilot Readiness Gate | Both | validation | medium | approved | local_readiness_decision |
 
 ### Status Legend
 

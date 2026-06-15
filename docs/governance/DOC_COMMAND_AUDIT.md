@@ -348,3 +348,13 @@ Added 2026-06-15 for the module GPT local review loop.
 | `python -m cli.main bundle miniapp-positive-pilot validate --prereq-evidence <json> --plan <json> --dry-run <json> --artifact-manifest <json> --out <json> --md-out <md>` | The prerequisite evidence, RuntimeAuthorization summary, positive pilot plan, dry-run manifest, and artifact manifest agree on project, profile, authorization, runtime-execution boundary, and artifact hygiene. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
 
 Hard rule: bundle validation is a consistency check only. `READY_FOR_REAL_ENV_PROBE_DRY_RUN` and `READY_FOR_AUTHORIZED_E2E_TEMPLATE` are not real E2E PASS states. The validator must fail mismatched project/profile/schema, unauthorized `executed_real_runtime=true`, failing artifact manifest, and sensitive/prohibited artifacts. A real MiniApp E2E run still requires separate RuntimeAuthorization and a positive-pilot execution TaskSpec.
+
+## TESTFRAME-TGM-MINIAPP-POSITIVE-PILOT-READINESS-GATE-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python -m cli.main readiness miniapp-positive-pilot --bundle-report <json> --out <json> --md-out <md>` | A validated local bundle maps to a readiness decision: BLOCKED, READY_FOR_REAL_ENV_PROBE, READY_FOR_AUTHORIZED_E2E_TEMPLATE, or FAILED. | Real MiniApp E2E execution, WeChat DevTools launch, automator endpoint connectivity, Jest E2E results, selector coverage, login, route coverage, or final acceptance. |
+
+Hard rule: readiness gate READY is not real E2E PASS. `READY_FOR_REAL_ENV_PROBE` still requires real environment authorization. `READY_FOR_AUTHORIZED_E2E_TEMPLATE` still requires a separate positive-pilot execution TaskSpec and RuntimeAuthorization. Any source report with `executed_real_runtime=true` in this local task must fail readiness evaluation.

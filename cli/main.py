@@ -333,5 +333,31 @@ def validate_miniapp_positive_pilot_bundle(prereq_evidence, plan_path, dry_run_p
         sys.exit(1)
 
 
+@cli.group()
+def readiness():
+    """Readiness decision utilities."""
+    pass
+
+
+@readiness.command("miniapp-positive-pilot")
+@click.option("--bundle-report", required=True, help="Bundle report JSON")
+@click.option("--out", required=True, help="Readiness report JSON")
+@click.option("--md-out", "md_out", required=True, help="Readiness report Markdown")
+def evaluate_miniapp_positive_pilot_readiness(bundle_report, out, md_out):
+    """Evaluate final local TGM MiniApp positive pilot readiness."""
+    from tools.evaluate_miniapp_positive_pilot_readiness import evaluate_readiness
+
+    result = evaluate_readiness(bundle_report, out, md_out)
+    click.echo(f"readiness_status: {result.report['readiness_status']}")
+    click.echo(f"final_verdict_for_real_e2e: {result.report['final_verdict_for_real_e2e']}")
+    click.echo(f"permits_real_e2e: {str(result.report['permits_real_e2e']).lower()}")
+    click.echo(f"executed_real_runtime: {str(result.report['executed_real_runtime']).lower()}")
+    click.echo(f"required_next_action: {result.report['required_next_action']}")
+    for failure in result.report["failures"]:
+        click.echo(f"- {failure}")
+    if result.report["readiness_status"] == "FAILED":
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     cli()
