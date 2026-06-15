@@ -1,7 +1,7 @@
 # RD2100 Agent Runtime v2 -- Negative Acceptance Tests
 
 > Batch D3, 2026-05-27
-> 48 negative acceptance test cases for reviewer detection capability testing.
+> 49 negative acceptance test cases for reviewer detection capability testing.
 > Each test simulates a report with deliberate violations. The reviewer must catch them.
 
 ## Test Index
@@ -56,12 +56,13 @@
 | NEG-046 | Paper business report lacks fresh authorization gate | blocked | Yes |
 | NEG-047 | Paper business report has incomplete command-chain stages | fail | No |
 | NEG-048 | Paper business report leaks raw privacy-boundary fields | blocked | Yes |
+| NEG-049 | Paper synthetic/offline report authorizes live execution | blocked | Yes |
 
 ## Gate Decision Distribution
 
 | Decision | Count |
 |----------|-------|
-| blocked | 33 |
+| blocked | 34 |
 | fail | 12 |
 | warning | 3 |
 
@@ -101,7 +102,7 @@
 | security | No raw paper text or WriteLab tokens in reports/evidence | NEG-035, NEG-036 |
 | review-004 | Paper business validation command and handoff evidence chain | NEG-039, NEG-040, NEG-042, NEG-043 |
 | review-005 | Paper reviewer/audit pack is not final acceptance | NEG-041 |
-| paper | Machine-readable business validation report mode and boundary | NEG-044, NEG-045, NEG-046, NEG-047, NEG-048 |
+| paper | Machine-readable business validation report mode and boundary | NEG-044, NEG-045, NEG-046, NEG-047, NEG-048, NEG-049 |
 | security | No raw paper fields or WriteLab tokens in business validation report | NEG-048 |
 
 ## Phase 3 Adapter Canary Guidance
@@ -172,6 +173,7 @@ machine-readable Paper Business Validation report. They cover:
 - incomplete required command-chain stages;
 - missing privacy-boundary redaction assertion or raw `paragraph_text`, `writelab_token`,
   `matched_text`, or `text_span` fields.
+- synthetic/offline candidate evidence authorizing live WriteLab or real-content execution.
 
 These fixtures constrain report shape and reviewer rejection behavior only. They do not
 produce final acceptance, paper quality verdicts, real-content validation, or live WriteLab
@@ -187,8 +189,8 @@ All fixtures are in `negative-test-fixtures/`. Each file is valid JSON with the 
 # RD2100 Agent Runtime v2 Batch D3 Execution Report
 ## Status
 ## Task: Batch D3 - Negative Acceptance Tests
-## Fixture Count: 48/48
-## Hard Stop Count: 33
+## Fixture Count: 49/49
+## Hard Stop Count: 34
 ## Coverage Map: All 6 review rules, all P0+P1+P2+P3 gates, all 8 core contracts, all FORBIDDEN tool categories, all phase boundary policies
-## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (48 fixtures + README.md)
+## Scope Control: Only approved paths written: docs/agent-runtime/negative-acceptance-tests.md and docs/agent-runtime/negative-test-fixtures/*.json (49 fixtures + README.md)
 ```

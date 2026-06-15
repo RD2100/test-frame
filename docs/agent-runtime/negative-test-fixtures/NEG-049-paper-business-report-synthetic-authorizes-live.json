@@ -1,0 +1,37 @@
+{
+  "test_id": "NEG-049",
+  "domain": "paper_writelab_business_validation_report",
+  "gate_level": "P0",
+  "scenario": "A machine-readable paper business validation report treats synthetic/offline candidate evidence as authorization for live WriteLab or real-content execution.",
+  "input_report_features": "business_validation_report.json sets validation_mode='synthetic_offline', business_validation_pass=true, candidate_status='ready', and live_execution_authorized=true. It claims the offline candidate unlocks live_writelab execution or real_content_pilot behavior without a separate fresh RuntimeAuthorization record and human_gate_ref.",
+  "expected_gate_decision": "blocked",
+  "expected_findings": [
+    "synthetic_offline validation cannot authorize live WriteLab or real-content execution",
+    "business_validation_pass remains candidate verification evidence only",
+    "live_execution_authorized must remain false or absent without separate fresh RuntimeAuthorization",
+    "Live WriteLab or real-content escalation requires a human_gate_ref boundary record"
+  ],
+  "related_invariant": "paper:business-validation-report, RuntimeAuthorization, workflow-closure-validator:SD-07, review-001",
+  "hard_stop": true,
+  "canary_tags": [
+    "synthetic-authorizes-live-execution",
+    "live-execution-authorized-overclaim",
+    "machine-readable-report"
+  ],
+  "contract_surface": [
+    "PaperBusinessValidationReport",
+    "RuntimeAuthorization",
+    "ReviewerEvidencePack"
+  ],
+  "test_frame_boundary": {
+    "produces": [
+      "verification evidence",
+      "reviewer detection input"
+    ],
+    "does_not_produce": [
+      "final acceptance",
+      "paper quality verdict",
+      "WriteLab live verdict"
+    ]
+  }
+}

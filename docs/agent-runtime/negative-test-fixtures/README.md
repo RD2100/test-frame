@@ -1,7 +1,7 @@
 # Negative Test Fixtures -- RD2100 Agent Runtime v2
 
 > Batch D3, 2026-05-27
-> 48 deliberately-broken test fixtures for reviewer detection capability testing.
+> 49 deliberately-broken test fixtures for reviewer detection capability testing.
 
 ## Purpose
 
@@ -15,7 +15,7 @@ Each `.json` file is a self-contained test case with these fields:
 
 | Field | Description |
 |-------|-------------|
-| `test_id` | Unique identifier (NEG-001 through NEG-048) |
+| `test_id` | Unique identifier (NEG-001 through NEG-049) |
 | `scenario` | Human-readable description of the violation being tested |
 | `input_report_features` | Description of what the fake report contains -- the violation details |
 | `expected_gate_decision` | What the reviewer should decide (must NOT be "pass") |
@@ -59,7 +59,7 @@ Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
 | Gate result integrity | 1 | NEG-010 |
 | Paper/WriteLab redacted reviewer pack | 8 | NEG-031, NEG-032, NEG-033, NEG-034, NEG-035, NEG-036, NEG-037, NEG-038 |
 | Paper/WriteLab business validation | 5 | NEG-039, NEG-040, NEG-041, NEG-042, NEG-043 |
-| Paper/WriteLab business validation report | 5 | NEG-044, NEG-045, NEG-046, NEG-047, NEG-048 |
+| Paper/WriteLab business validation report | 6 | NEG-044, NEG-045, NEG-046, NEG-047, NEG-048, NEG-049 |
 
 ## Hard Stop Distribution
 
@@ -67,7 +67,7 @@ Paper/WriteLab reviewer-pack fixtures may also include these extension fields:
 |-----------|-------|
 | true (P0) | 22 |
 | false (P1/P2/P3) | 8 |
-| paper extension true (P0) | 11 |
+| paper extension true (P0) | 12 |
 | paper extension false (P1/P2) | 7 |
 
 ## Relationship to Invariants
@@ -116,6 +116,8 @@ reports:
 - incomplete required command-chain stages;
 - missing privacy-boundary redaction assertion or raw `paragraph_text`, `writelab_token`,
   `matched_text`, or `text_span` fields in the report.
+- synthetic/offline candidate evidence incorrectly authorizing live WriteLab or real-content
+  execution.
 
 These fixtures constrain the report shape only. They do not certify paper business success,
 real paper content handling, live WriteLab behavior, or final acceptance.

@@ -100,6 +100,11 @@ PAPER_FIXTURE_IDS = {
         "decision": "blocked",
         "tag": "privacy-boundary-leak",
     },
+    "NEG-049": {
+        "gate_level": "P0",
+        "decision": "blocked",
+        "tag": "synthetic-authorizes-live-execution",
+    },
 }
 
 REQUIRED_FIELDS = {
@@ -123,9 +128,9 @@ def _load_fixtures() -> list[dict]:
 def test_all_negative_fixtures_keep_core_contract_shape():
     fixtures = _load_fixtures()
 
-    assert len(fixtures) == 48
+    assert len(fixtures) == 49
     assert {fixture["test_id"] for fixture in fixtures} == {
-        f"NEG-{index:03d}" for index in range(1, 49)
+        f"NEG-{index:03d}" for index in range(1, 50)
     }
     for fixture in fixtures:
         assert REQUIRED_FIELDS <= set(fixture), fixture["test_id"]
