@@ -278,3 +278,13 @@ Added 2026-06-15 for the module GPT local review loop.
 Hard rule: evidence pack validation checks package shape and text hygiene only. `BLOCKED` or `FAILED` raw evidence can still be valid evidence and must not be promoted to `PASS`. Missing raw evidence JSON, missing git patch, missing `EXECUTION_REPORT.md` / `REVIEWER_INDEX.md`, local absolute paths, runtime paths, or raw secret values are packaging defects.
 
 Sensitive-scan boundary: evidence packs may include environment variable names and `[REDACTED]` placeholders, but must not include secret values, raw cookies, storageState payloads, or local absolute paths. This scan is a local test-frame evidence hygiene gate, not final product acceptance or an agent-acceptance global schema.
+
+## TESTFRAME-TGM-MINIAPP-PREREQ-REPORT-A1
+
+Added 2026-06-15 for the module GPT local review loop.
+
+| Command | What it proves | What it does not prove |
+|---|---|---|
+| `python tools/generate_miniapp_prereq_report.py --evidence artifacts/tgm-miniapp-positive-pilot-prereq.json --out reports/tgm-miniapp-prereq-report.md --json-out reports/tgm-miniapp-prereq-report.json` | The existing TGM MiniApp prerequisite evidence can be summarized into Markdown and JSON reviewer reports with status, reason codes, hygiene flags, and runtime boundaries. | Real MiniApp E2E readiness, WeChat DevTools launch, automator endpoint connectivity, login, route coverage, selector assertions, or release readiness. |
+
+Hard rule: the prerequisite report must keep `final_verdict_for_real_e2e=NOT_READY` and `permits_real_e2e=false` unless a separate RuntimeAuthorization task explicitly changes the boundary. Dry-run readiness and prerequisite evidence must not be written as real E2E PASS.

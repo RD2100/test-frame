@@ -301,6 +301,18 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 - **Boundary note**: validator proves package completeness only; `BLOCKED` and `FAILED` can be valid evidence states and must not be promoted to PASS.
 - **Sensitive-scan note**: validator scans text entries in the ZIP for local absolute paths, runtime paths, and raw secret values. This is test-frame evidence hygiene only; it is not final acceptance and does not define an agent-acceptance global schema.
 
+## 26. Time Goal Manager MiniApp Prerequisite Report
+- **Platform**: Both
+- **Type**: reporting | **Access**: local_evidence_summary | **Risk**: low
+- **Preferred for**: generating Markdown and JSON reviewer summaries from `tgm.miniapp.positive_pilot.prereq` evidence
+- **Forbidden for**: claiming Real MiniApp E2E readiness, launching WeChat DevTools, connecting automator endpoints, or reporting dry-run as runtime success
+- **Fallback**: raw `tgm-miniapp-positive-pilot-prereq.json` capability evidence
+- **Human gate**: yes for real MiniApp runtime authorization; no for local report generation | **Must explain if skipped**: yes
+- **Evidence**: `python tools/generate_miniapp_prereq_report.py --evidence artifacts/tgm-miniapp-positive-pilot-prereq.json --out reports/tgm-miniapp-prereq-report.md --json-out reports/tgm-miniapp-prereq-report.json`
+- **Status**: approved
+- **Approval note**: enabled under module GPT handoff on 2026-06-15 for `TESTFRAME-TGM-MINIAPP-PREREQ-REPORT-A1`.
+- **Boundary note**: report output is reviewer-facing prerequisite evidence only. `final_verdict_for_real_e2e=NOT_READY` and `permits_real_e2e=false` are mandatory unless a separate RuntimeAuthorization TaskSpec changes the boundary.
+
 ---
 
 ## Summary
@@ -332,6 +344,7 @@ Rule reference: rules/core.md core-007. Status: proposed = NOT usable until appr
 | 23 | H5 Real Staging Login Opt-in Skeleton | Both | validation | high | approved | local_probe |
 | 24 | Time Goal Manager MiniApp Positive Pilot Prerequisite Gate | Both | validation | medium | approved | local_probe |
 | 25 | Module GPT Evidence Pack Manifest Gate | Both | validation | low | approved | local_zip_manifest_validation |
+| 26 | Time Goal Manager MiniApp Prerequisite Report | Both | reporting | low | approved | local_evidence_summary |
 
 ### Status Legend
 
